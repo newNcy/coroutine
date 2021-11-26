@@ -1,18 +1,22 @@
-.global  save_ctx, restore_ctx, 
+.global  swap_ctx , co_resume, co_yield
 
-save_ctx:
-    movq %rsp, (%rdi);
-    movq %rbp, 8(%rdi);
-    movq (%rsp), %rdx;
-    movq %rdx, 16(%rdi);
-    movq $0, %rax;
+#input 
+#
+#if defined(__x86_64__)
+swap_ctx:
+    movq (%rsp), %rax
+    movq %rax, 16(%rcx)
+    movq %rbp, 8(%rcx)
+    movq %rsp, (%rcx)
+
+    movq (%rdx), %rsp
+    movq 8(%rdx), %rbp
+    movq 16(%rdx), %rax
+    pushq %rax
     ret
 
-restore_ctx:
-    movq (%rdi), %rsp;
-    movq 8(%rdi), %rbp;
-    movq 16(%rdi), %rdx;
-    movq %rdx, (%rsp);
-    movq $1, %rax
-    ret
-    
+co_resume:
+    movq (%rcx),%rdx
+    movq 8(%rcx),%rcx
+    jmp swap_ctx
+#endif

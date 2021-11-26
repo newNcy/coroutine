@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdint.h>
-#include <setjmp.h>
+#include <malloc.h>
+
+#define CO_STACK_SIZE 1024 * 100
 
 typedef struct 
 {
@@ -8,27 +10,43 @@ typedef struct
     uint64_t rbp;
     uint64_t rip;
 
-}context_t;
+    uint64_t rdx;
+    uint64_t r;
+    
+} context_t;
 
 
 typedef struct coroutine_t
 {
-    struct coroutine_t * pre_ctx;
     context_t * ctx;
-    char * stack; 
-}context_t;
+    context_t * main;
+}coroutine_t;
 
-extern int save_ctx(context_t * );
-extern int restore_ctx(context_t * );
+typedef void * (*coroutine_entry_t)(coroutine_t *,void *args);
 
-void co_create(context_t * ctx, long (*entry)(void *), uint64_t stack_size) 
+extern uint64_t save_ctx(context_t * );
+extern uint64_t restore_ctx(context_t * );
+extern uint64_t swap_ctx(context_t * cur, context_t * next);
+
+
+coroutine_t * co_create(coroutine_entry_t entry) 
 {
+    coroutine_t * co = (coroutine_t*)malloc(sizeof(coroutine_t));
+    co->ctx = (context_t*)malloc(sizeof(context_t));
+    co->main= (context_t*)malloc(sizeof(context_t));
+
+    co->ctx->rbp = (uint64_t)((char*)malloc(CO_STACK_SIZE) + CO_STACK_SIZE /2);
+    co->ctx->rsp = co->ctx->rbp;
+    co->ctx->rip = (uint64_t)entry;
+    return co;
 }
 
-
-void show(context_t t)
+void num(coroutine_t* co)
 {
-    printf("%d\n", t.rip);
+    printf("co:rsp:%p, rbp:%p, rip:%p  main:rsp:%p, rbp:%p, rip:%p\n", co->ctx->rsp, co->ctx->rbp, co->ctx->rip, co->main->rsp, co->main->rbp,co->main->rip);
+    fflush(stdout);
+    swap_ctx(co->ctx, co->main);
+    //fflush(stdout);
 }
 
 int add(int a, int b) 
@@ -38,13 +56,13 @@ int add(int a, int b)
 
 int main()
 {
-    printf("%d\n", sizeof(context_t));
-    printf("%d\n", main);
-    context_t ctx;
-    int res = save_ctx(&ctx);
-    printf("save_ctx:%d\n", res);
-    if (res == 0) {
-        restore_ctx(&ctx);
-    }
-    show(ctx);
+    coroutine_t * co = co_create((coroutine_entry_t)num);
+    //printf("in main %p\n", co);
+    co_resume(co);
+    printf("co:rsp:%p, rbp:%p, rip:%p  main:rsp:%p, rbp:%p, rip:%p\n", co->ctx->rsp, co->ctx->rbp, co->ctx->rip, co->main->rsp, co->main->rbp,co->main->rip);
+    fflush(stdout);
+    //printf("%p %p %p\n", co->ctx->rip, co->ctx->rsp, co->ctx->rbp);
+    //printf("%p %p %p\n", co->main->rip, co->main->rsp, co->main->rbp);
+    printf("back\n");
+    //fflush(stdout);
 }
