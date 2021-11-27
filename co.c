@@ -14,11 +14,26 @@ typedef struct co_timer_t
 typedef struct co_timer_mgr_t
 {
     co_timer_t * head;
-    co_timer_t * tail;
 }co_timer_mgr_t;
 
 co_timer_mgr_t co_timer_mgr = {0};
 
+
+void print_tmgr()
+{
+    co_timer_t * cur = co_timer_mgr.head;
+    int max = 20;
+    int i = 0; 
+    while (cur) {
+        ++ i;
+        if (i >= max) {
+            printf("xxx\n");
+            break;
+        }
+        printf("[%d:%d]\n", cur->co_id, cur->expiration_time);
+        cur = cur->next;
+    }
+}
 
 void sleep(int s)
 {
@@ -30,22 +45,29 @@ void sleep(int s)
     timer->expiration_time = time(0) + s;
     timer->next = NULL;
 
+    //printf("%d sleep %d\n", timer->co_id, s);
+    //print_tmgr();
     if (!co_timer_mgr.head) {
-        co_timer_mgr.tail = co_timer_mgr.head = timer;
+        //printf("first one\n");
+        co_timer_mgr.head = timer;
     } else {
-        co_timer_mgr.tail->next = timer;
-        co_timer_mgr.tail = timer;
+        // todo 换成小根堆
+        if (co_timer_mgr.head->expiration_time > timer->expiration_time) {
+            //printf("insert as head\n");
+            timer->next = co_timer_mgr.head;
+            co_timer_mgr.head = timer;
+        }else {
+            //printf("insert inside\n");
+            co_timer_t * cur = co_timer_mgr.head;
+            while (cur->next && cur->next->expiration_time < timer->expiration_time) {
+                cur = cur->next;
+            }
+            timer->next = cur->next;
+            cur->next = timer;
+        }
     }
+    //print_tmgr();
     co_yield();
-}
-
-void foo()
-{
-    for (int i = 0; i < 3; ++ i) {
-        sleep(1);
-        printf("sleep 1s\n");
-        fflush(stdout);
-    }
 }
 
 int has_timer()
@@ -59,32 +81,41 @@ void process_timer()
     time_t now = time(0);
     while (cur) {
         if (cur->expiration_time <= now) {
-            co_resume(cur->co_id);
+            int id = cur->co_id;
             co_timer_t * next = cur->next;
             free(cur);
-            cur = next;
+            co_timer_mgr.head = cur = next;
+
+            co_resume(id);
         } else {
             break;
         }
     }
-    co_timer_mgr.head = cur;
-    if (!cur) {
-        co_timer_mgr.tail = NULL;
-    }
 }
 
+void co_sleep(int s)
+{
+    for (int i = 0; i < 3; ++ i) {
+        sleep(s);
+        printf("sleep %ds\n", s);
+        fflush(stdout);
+    }
+}
 
 int main()
 {
 
     co_init(10);
 
-    int co = co_create((coroutine_entry_t)foo);
-    co_resume(co);
+    int co_sleep1 = co_create((coroutine_entry_t)co_sleep, (void*)1);
+    int co_sleep3 = co_create((coroutine_entry_t)co_sleep, (void*)3);
 
+    co_resume(co_sleep1);
+    co_resume(co_sleep3);
     while (has_timer()) {
         process_timer();
     }
+    printf("done\n");
     co_finish();
     return 0;
 }

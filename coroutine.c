@@ -51,9 +51,9 @@ extern uint64_t swap_ctx(context_t * cur, context_t * next);
 /*
  * 需要协程函数执行完的时候改变状态
  */
-void co_bootstrap(coroutine_t * co)
+void co_bootstrap(coroutine_t * co, void * args)
 {
-    co->entry();
+    co->entry(args);
     co->status = CO_FINISH;
     //printf("[%x] finish with stack:[%x:%x]\n", co, co->ctx.rbp, co->ctx.rsp);
     schedule.running = co->last_id;
@@ -80,7 +80,7 @@ void co_finish()
     free(schedule.coroutines);
 }
 
-int co_create(coroutine_entry_t entry)
+int co_create(coroutine_entry_t entry, void * args)
 {
     int id = schedule.count;
     if (id == schedule.max) {
@@ -109,6 +109,7 @@ int co_create(coroutine_entry_t entry)
     co->ctx.rsp = co->ctx.rbp - 32; // 只知道需要8个字节放返回地址，剩下24个字节或者三个地址不知道哪里被修改了，就只好挪一挪腾出来32个字节,不然内存越界了
     co->ctx.rip = (uint64_t)co_bootstrap;
     co->ctx.rcx = (uint64_t)co;
+    co->ctx.rdx = (uint64_t)args;
 
     //printf("[%x] created with stack:[%x:%x] %x\n", co, co->ctx.rbp, co->ctx.rsp, stack);
     return id;
