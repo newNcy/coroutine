@@ -1,4 +1,4 @@
-.global  swap_ctx , co_resume, co_yield
+.global  swap_ctx
 
 #input 
 #
