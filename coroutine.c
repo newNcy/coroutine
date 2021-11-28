@@ -80,7 +80,7 @@ void co_finish()
     free(schedule.coroutines);
 }
 
-int co_create(coroutine_entry_t entry, void * args)
+int co_create(void * entry, void * args)
 {
     int id = schedule.count;
     if (id == schedule.max) {
@@ -102,7 +102,7 @@ int co_create(coroutine_entry_t entry, void * args)
         co->stack = (char*)malloc(CO_STACK_SIZE);
     }
 
-    co->entry = entry;
+    co->entry = (coroutine_entry_t)entry;
     co->status = CO_SUSPEND;
 
     co->ctx.rbp = (uint64_t)(co->stack + CO_STACK_SIZE);
