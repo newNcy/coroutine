@@ -60,20 +60,21 @@ void co_bootstrap(coroutine_t * co, void * args)
     swap_ctx(&co->ctx, &co->main);
 }
 
-/*
- * max主要是需要考虑协程使用的内存
- */
-void co_init(int max)
+void co_init()
 {
     schedule.running = CO_ID_INVALID;
     schedule.count = 0;
-    schedule.max = max;
-    schedule.coroutines = (coroutine_t*)malloc(max * sizeof(coroutine_t));
-    memset(schedule.coroutines, 0 , max * sizeof(coroutine_t));
+    schedule.max = 0;
 }
 
 void co_finish()
 {
+	for (int i = 0 ; i < schedule.count; ++i) {
+		if (schedule.coroutines[i].stack) {
+			free(schedule.coroutines[i].stack);
+			schedule.coroutines[i].stack = NULL;
+		}
+	}
     schedule.running = CO_ID_INVALID;
     schedule.count = 0;
     schedule.max = 0;
@@ -91,14 +92,34 @@ int co_create(void * entry, void * args)
             }
         }
     }
+
+	/* handle coroutine memory */
     if (id == schedule.max) { 
-        return CO_ID_INVALID;
+		if (schedule.max == 0) {
+			int max = 2;
+			schedule.coroutines = (coroutine_t*)malloc(max * sizeof(coroutine_t));
+			if (!schedule.coroutines) {
+				return CO_ID_INVALID;
+			}
+			schedule.max = max;
+		}else {
+			int new_max = schedule.max * 2;
+			void * new_mem = realloc(schedule.coroutines, new_max * sizeof(coroutine_t));
+			if (!new_mem) {
+				return CO_ID_INVALID;
+			}
+			schedule.max = new_max;
+			schedule.coroutines = (coroutine_t*)new_mem;
+		}
+
+		id = schedule.count;
     }
-    schedule.count ++;
+
 
     coroutine_t * co = &schedule.coroutines[id];
 
-    if (!co->stack) {
+	/* uninitialized coroutine */
+    if (id == schedule.count) {
         co->stack = (char*)malloc(CO_STACK_SIZE);
     }
 
@@ -106,12 +127,12 @@ int co_create(void * entry, void * args)
     co->status = CO_SUSPEND;
 
     co->ctx.rbp = (uint64_t)(co->stack + CO_STACK_SIZE);
-    co->ctx.rsp = co->ctx.rbp - 32; // 只知道需要8个字节放返回地址，剩下24个字节或者三个地址不知道哪里被修改了，就只好挪一挪腾出来32个字节,不然内存越界了
+    co->ctx.rsp = co->ctx.rbp - 8; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte
     co->ctx.rip = (uint64_t)co_bootstrap;
     co->ctx.rcx = (uint64_t)co;
     co->ctx.rdx = (uint64_t)args;
 
-    //printf("[%x] created with stack:[%x:%x] %x\n", co, co->ctx.rbp, co->ctx.rsp, stack);
+    schedule.count ++;
     return id;
 }
 
@@ -143,6 +164,17 @@ void co_yield()
 }
 
 
+int co_is_all_finish()
+{
+	int done = true;
+	for (int id = 0; id < schedule.count; ++ id) {
+		done = done && (schedule.coroutines[id].status == CO_FINISH);
+		if (!done) {
+			break;
+		}
+	}
+	return done;
+}
 
 int co_running()
 {

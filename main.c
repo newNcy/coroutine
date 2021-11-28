@@ -1,0 +1,129 @@
+#include <stdio.h>
+#include "coroutine.h"
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <string.h>
+
+typedef struct sockaddr_in sockaddr_in;
+typedef struct sockaddr sockaddr;
+
+void take_util(char * stream, int stream_len, int * pos, char * to, int to_len, char stop)
+{
+	int old_pos = *pos;
+	if (!stream) {
+		return 0;
+	}
+	while(* pos != stream_len && stream[*pos] != stop) {	
+		*pos ++;	
+	}
+	if (*pos != stop) {
+		*pos = old_pos;
+		return;
+	}
+
+	int count = *pos - old_pos;
+	if (to && count > 0) {
+		memcpy(to, stream, count > to_len ? to_len:count - 1);
+	}
+}
+
+int handle_http_request(char * buff, int len)
+{
+	return 1;
+	int close = 1;
+	char method[10] = {0}, uri[512] = {0}, version[20] = {0};
+
+	int byte_took = 0;
+	take_util(buff, len, &byte_took, method, 9, ' ');
+	take_util(buff, len, &byte_took, uri, 511, ' ');
+	take_util(buff, len, &byte_took, version, 19, '\r');
+
+	printf("%s %s %s\n", method, uri, version);
+	return close;
+}
+
+void async_handle_connection(int conn)
+{
+	char buff[1024] = {0};
+	int used = 0;
+    while(true) {
+		int rc = recv(conn, buff + used, 1024 - used, 0);
+		if (rc == 0) {
+			break;
+		}
+
+		used += rc;
+		if (strstr(buff + used - rc, "\r\n\r\n")) {
+			handle_http_request(buff, used);
+			
+			char content = "";
+			char template = 
+				"200 OK\r\n"
+				"content-type: text/html\r\n"
+				"content-length: 24\r\n"
+				"\r\n\r\n"
+				"<h1>hello coroutine</h1>";
+
+			char response_buff[1024] = {0};
+			send(conn, template, strlen(template), 0);
+			used = 0;
+		}
+		if (used == 1024) {
+			break;
+		}
+    }
+	close(conn);
+}
+
+
+void async_main()
+{
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    printf("socket %d\n", sock);
+    
+    sockaddr_in bind_info; 
+    bind_info.sin_family = AF_INET;
+    bind_info.sin_addr.s_addr = htonl(INADDR_ANY);
+    bind_info.sin_port = htons(1224);
+
+    int err = bind(sock, (sockaddr*)&bind_info, sizeof(bind_info));
+
+	int dummy;
+	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &dummy, sizeof(dummy));
+    if (err) {
+        printf("bind failed\n");
+        return;
+    }
+
+    err = listen(sock, 100);
+    while(true) {
+        sockaddr_in client;
+        int len = sizeof(client);
+        int conn = accept(sock, (sockaddr *)&client, &len);
+        printf("new connection:%d\n", conn);
+        int co = co_create(async_handle_connection, (void*)conn);
+        co_resume(co);
+    }
+}
+
+void test(int input)
+{
+	printf("input %d\n", input);
+	co_yield(input);
+	printf("input %d\n", input);
+}
+
+int main()
+{
+
+    co_init(10);
+    co_event_init();
+
+    int amain = co_create(async_main, NULL);
+    co_resume(amain);
+
+    co_event_loop();
+    printf("done\n");
+    co_finish();
+    return 0;
+}

@@ -2,7 +2,8 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#define CO_STACK_SIZE 1024 * 100
+#define CO_STACK_SIZE 1024 * 128
+#define true 1
 
 typedef enum 
 {
@@ -15,17 +16,17 @@ static int CO_ID_INVALID = -1;
 
 typedef void * (*coroutine_entry_t)(void *args);
 
-void co_init(int max);
+void co_init();
 int co_create(void *entry, void * args);
 void co_resume(int co);
 void co_yield();
 int co_running();
 void co_finish();
+int co_is_all_finish();
+
+void co_event_init();
 void co_event_loop();
 
 
-////////////////////阻塞函数hook////////////////
-
-void sleep(int);
 
 

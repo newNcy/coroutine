@@ -1,2 +1,4 @@
-co:
-	gcc -g co.c coroutine.c hook.c context.S -o co -lws2_32
+co: main.c coroutine.c hook.c context.S
+	gcc -g main.c coroutine.c hook.c context.S -o co  -ldl
+clean:
+	rm co 
