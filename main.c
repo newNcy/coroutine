@@ -95,15 +95,16 @@ void async_handle_connection(int conn)
                     "<head><title>hello coroutine</title></head>"
                     "<body><h1>hello coroutine</h1></body>"
                     "</html>";
+				char * json = "{\"a\" : 1}";
                 char * template = 
                     "HTTP/1.1 200 OK\r\n"
-                    "content-type: text/html\r\n"
+                    "content-type: application/json; charset=utf-8\r\n"
                     "content-length: %d\r\n"
-                    "\r\n\r\n"
+                    "\r\n"
                     "%s";
 
                 char response_buff[1024] = {0};
-                sprintf(response_buff, template, strlen(content), content);
+                sprintf(response_buff, template, strlen(json), json);
                 send(conn, response_buff, strlen(response_buff), 0);
                 used = 0;
             }
@@ -139,16 +140,11 @@ void async_main()
         sockaddr_in client;
         int len = sizeof(client);
         int conn = accept(sock, (sockaddr *)&client, &len);
+		unsigned char * ip = (char*)&client.sin_addr.s_addr;
+		printf("[%d.%d.%d.%d:%d]\n", ip[0], ip[1], ip[2], ip[3], htons(client.sin_port));
         int co = co_create(async_handle_connection, (void*)conn);
         co_resume(co);
     }
-}
-
-void test(int input)
-{
-    printf("input %d\n", input);
-    co_yield(input);
-    printf("input %d\n", input);
 }
 
 int main()

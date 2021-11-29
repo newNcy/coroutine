@@ -5,13 +5,18 @@
 #include <malloc.h>
 #include <string.h>
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <sys/epoll.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <errno.h>
 #include <unistd.h>
 
 typedef struct co_timer_t 
 {
     int co_id;
     time_t expiration_time;
+	struct timeval tv;
     struct co_timer_t * next;
 }co_timer_t;
 
@@ -112,11 +117,19 @@ void process_timer()
 
 typedef int (*socket_func_t)(int domain, int type, int protocol);
 typedef int (*accept_func_t)(int fd, struct sockaddr *addr, socklen_t *len);
-typedef int (*recv_func_t)(int fd, char * buf, int len, int flags);
-typedef int (*send_func_t)(int fd, char * buf, int len, int flags);
+typedef int (*connect_func_t)(int fd, const struct sockaddr *addr, socklen_t len);
+typedef int (*recv_func_t)(int fd, void * buf, size_t len, int flags);
+typedef int (*send_func_t)(int fd, void * buf, size_t len, int flags);
 typedef int (*close_func_t)(int fd);
 
 
+int setnoblocking(int fd)
+{
+	int old_option = fcntl(fd, F_GETFL);
+	int new_option = old_option | O_NONBLOCK;
+	fcntl(fd, F_SETFL, new_option);
+	return old_option;
+}
 
 #define HOOK_FUNC( x ) static x##_func_t _##x = NULL; if (!_##x)  _##x = (x##_func_t)dlsym(RTLD_NEXT, #x)
 
@@ -148,6 +161,7 @@ int socket(int domain, int type, int protocal)
 {
     HOOK_FUNC(socket);
     int sock = _socket(domain, type, protocal); 
+	setnoblocking(sock);
     co_io_add(sock);
     return sock;
 }
@@ -163,7 +177,27 @@ int accept(int fd, struct sockaddr * addr, socklen_t * len)
     return sock;
 }
 
-int recv(int fd,char * buff, int len, int flags) 
+int connect(int fd, const struct sockaddr * addr, socklen_t len)
+{
+	HOOK_FUNC(connect);
+	int ret = _connect(fd, addr, len);
+	if (ret == 0) {
+		co_io_add(fd);
+		return ret;
+	} else if (errno !=  EINPROGRESS) {
+		return ret;
+	}
+	co_io_wait(fd, EPOLLOUT);
+	int error = 0;
+	len = sizeof(error);
+	if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0 || error != 0)  {
+		return -1;
+	}
+	return 0;
+}
+
+
+ssize_t recv(int fd, void * buff, size_t len, int flags) 
 {
     HOOK_FUNC(recv);
     debug("async recv");
@@ -172,7 +206,7 @@ int recv(int fd,char * buff, int len, int flags)
     return _recv(fd, buff, len, flags);
 }
 
-int send(int fd, char * buff, int len, int flags)
+ssize_t send(int fd, const void * buff, size_t len, int flags)
 {
     HOOK_FUNC(send);
     debug("async send");
