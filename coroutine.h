@@ -5,6 +5,12 @@
 #define CO_STACK_SIZE 1024 * 128
 #define true 1
 
+#ifdef DEBUG
+#define debug(fmt,...) printf("[debug] [%d] "fmt"\n", co_running(),  ##__VA_ARGS__)
+#else
+#define debug
+#endif
+
 typedef enum 
 {
     CO_SUSPEND,

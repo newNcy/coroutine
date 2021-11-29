@@ -16,14 +16,14 @@ void take_util(char * stream, int stream_len, int * pos, char * to, int to_len, 
 	while(* pos < stream_len && stream[*pos] != stop) {	
 		(*pos) ++;	
 	}
-	if (*pos != stop) {
+	if (stream[*pos] != stop) {
 		*pos = old_pos;
 		return;
 	}
 
 	int count = *pos - old_pos;
 	if (to && count > 0) {
-		memcpy(to, stream, count > to_len ? to_len:count - 1);
+		memcpy(to, stream + old_pos, count > to_len ? to_len:count);
 	}
 }
 
@@ -34,10 +34,13 @@ int handle_http_request(char * buff, int len)
 
 	int byte_took = 0;
 	take_util(buff, len, &byte_took, method, 9, ' ');
+	byte_took ++;
 	take_util(buff, len, &byte_took, uri, 511, ' ');
+	byte_took ++;
 	take_util(buff, len, &byte_took, version, 19, '\r');
 
-	printf("%s %s %s\n", method, uri, version);
+	printf("|%s|%s|%s|\n", method, uri, version);
+	fflush(stdout);
 	return close;
 }
 
@@ -104,7 +107,6 @@ void async_main()
         sockaddr_in client;
         int len = sizeof(client);
         int conn = accept(sock, (sockaddr *)&client, &len);
-        printf("new connection:%d\n", conn);
         int co = co_create(async_handle_connection, (void*)conn);
         co_resume(co);
     }

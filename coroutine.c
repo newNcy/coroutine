@@ -55,9 +55,7 @@ void co_bootstrap(coroutine_t * co, void * args)
 {
     co->entry(args);
     co->status = CO_FINISH;
-    //printf("[%x] finish with stack:[%x:%x]\n", co, co->ctx.rbp, co->ctx.rsp);
-    schedule.running = co->last_id;
-    swap_ctx(&co->ctx, &co->main);
+	co_yield();
 }
 
 void co_init()
@@ -142,6 +140,7 @@ void co_resume(int id)
         coroutine_t * co = &schedule.coroutines[id];
         if (co && co->status == CO_SUSPEND) {
             co->status = CO_RUNNING;
+			debug("[%d] resume [%d]", schedule.running, id);
             co->last_id = schedule.running;
             schedule.running = id;
             swap_ctx(&co->main, &co->ctx);
@@ -155,8 +154,11 @@ void co_yield()
     int id = schedule.running;
     if (id >= 0 && id < schedule.count) {
         coroutine_t * co = &schedule.coroutines[id];
-        if (co && co->status == CO_RUNNING) {
-            co->status = CO_SUSPEND;
+        if (co && (co->status == CO_RUNNING || co->status == CO_FINISH)) {
+			if (co->status != CO_FINISH) {
+				co->status = CO_SUSPEND;
+			}
+			debug("[%d] yield [%d]", schedule.running, co->last_id);
             schedule.running = co->last_id;
             swap_ctx(&co->ctx, &co->main);
         }
