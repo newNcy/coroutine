@@ -1,6 +1,7 @@
 #include "coroutine.h"
 #include <string.h>
 #include <malloc.h>
+#include "array.h"
 
 typedef uint64_t reg_t;
 
@@ -38,9 +39,7 @@ typedef struct coroutine_t
 typedef struct 
 {
     int running;
-    int count;
-    int max;
-    coroutine_t * coroutines;
+    array_t coroutines;
 } schedule_t;
 
 
@@ -61,64 +60,44 @@ void co_bootstrap(coroutine_t * co, void * args)
 void co_init()
 {
     schedule.running = CO_ID_INVALID;
-    schedule.count = 0;
-    schedule.max = 0;
+    array_init(&schedule.coroutines);
 }
 
 void co_finish()
 {
-    for (int i = 0 ; i < schedule.count; ++i) {
-        if (schedule.coroutines[i].stack) {
-            free(schedule.coroutines[i].stack);
-            schedule.coroutines[i].stack = NULL;
+    for (int i = 0 ; i < schedule.coroutines.size; ++i) {
+        coroutine_t * co = array_get(&schedule.coroutines, i);
+        if (co) {
+            if (co->stack) {
+                free(co->stack);
+                co->stack = NULL;
+            }
+            free(co);
+            array_set(&schedule.coroutines, i, (any_t)NULL);
         }
     }
     schedule.running = CO_ID_INVALID;
-    schedule.count = 0;
-    schedule.max = 0;
-    free(schedule.coroutines);
+    array_destroy(&schedule.coroutines);
 }
 
 int co_create(void * entry, void * args)
 {
-    int id = schedule.count;
-    if (id == schedule.max) {
-        for (int i = 0; i < schedule.max; ++ i) {
-            if (schedule.coroutines[i].status == CO_FINISH) {
-                id = i;
-                break;
-            }
+    int id = CO_ID_INVALID;
+    for (int i = 0; i < schedule.coroutines.size; ++ i) {
+        coroutine_t * co = array_get(&schedule.coroutines, i);
+        if (co->status == CO_FINISH) {
+            id = i;
+            break;
         }
     }
 
     /* handle coroutine memory */
-    if (id == schedule.max) { 
-        if (schedule.max == 0) {
-            int max = 2;
-            schedule.coroutines = (coroutine_t*)malloc(max * sizeof(coroutine_t));
-            if (!schedule.coroutines) {
-                return CO_ID_INVALID;
-            }
-            schedule.max = max;
-        }else {
-            int new_max = schedule.max * 2;
-            void * new_mem = realloc(schedule.coroutines, new_max * sizeof(coroutine_t));
-            if (!new_mem) {
-                return CO_ID_INVALID;
-            }
-            schedule.max = new_max;
-            schedule.coroutines = (coroutine_t*)new_mem;
-        }
-
-        id = schedule.count;
-    }
-
-
-    coroutine_t * co = &schedule.coroutines[id];
-
-    /* uninitialized coroutine */
-    if (id == schedule.count) {
+    coroutine_t * co = NULL;
+    if (id == CO_ID_INVALID) {
+        co = (coroutine_t*)malloc(sizeof(coroutine_t));
         co->stack = (char*)malloc(CO_STACK_SIZE);
+        array_push_back(&schedule.coroutines, (any_t)co);
+        id = schedule.coroutines.size - 1;
     }
 
     co->entry = (coroutine_entry_t)entry;
@@ -130,14 +109,13 @@ int co_create(void * entry, void * args)
     co->ctx.rcx = (uint64_t)co;
     co->ctx.rdx = (uint64_t)args;
 
-    schedule.count ++;
     return id;
 }
 
 void co_resume(int id)
 {
-    if (id >= 0 && id < schedule.count) {
-        coroutine_t * co = &schedule.coroutines[id];
+    if (id >= 0 && id < schedule.coroutines.size) {
+        coroutine_t * co = array_get(&schedule.coroutines, id);
         if (co && co->status == CO_SUSPEND) {
             co->status = CO_RUNNING;
             debug("[%d] resume [%d]", schedule.running, id);
@@ -152,13 +130,13 @@ void co_resume(int id)
 void co_yield()
 {
     int id = schedule.running;
-    if (id >= 0 && id < schedule.count) {
-        coroutine_t * co = &schedule.coroutines[id];
+    if (id >= 0 && id < schedule.coroutines.size) {
+        coroutine_t * co = array_get(&schedule.coroutines, id);
         if (co && (co->status == CO_RUNNING || co->status == CO_FINISH)) {
             if (co->status != CO_FINISH) {
                 co->status = CO_SUSPEND;
             }
-            debug("[%d] yield [%d]", schedule.running, co->last_id);
+            debug("[%d] %s [%d]", schedule.running, co->status == CO_FINISH?"finish,back to":"yield", co->last_id);
             schedule.running = co->last_id;
             swap_ctx(&co->ctx, &co->main);
         }
@@ -169,8 +147,9 @@ void co_yield()
 int co_is_all_finish()
 {
     int done = true;
-    for (int id = 0; id < schedule.count; ++ id) {
-        done = done && (schedule.coroutines[id].status == CO_FINISH);
+    for (int id = 0; id < schedule.coroutines.size; ++ id) {
+        coroutine_t * co = array_get(&schedule.coroutines, id);
+        done = done && (co->status == CO_FINISH);
         if (!done) {
             break;
         }
