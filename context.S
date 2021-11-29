@@ -19,7 +19,6 @@ swap_ctx:
     movq 8(%rsi), %rbp
     movq 16(%rsi), %rax
     movq %rax, (%rsp)
-
     // callee save register restoring
     movq 40(%rsi), %rbx
     movq 48(%rsi), %r12
