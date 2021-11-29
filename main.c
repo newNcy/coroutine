@@ -7,7 +7,14 @@
 typedef struct sockaddr_in sockaddr_in;
 typedef struct sockaddr sockaddr;
 
-void take_util(char * stream, int stream_len, int * pos, char * to, int to_len, char stop)
+typedef struct 
+{
+    char method[10];
+    char uri[256];
+    char version[10];
+}http_request_t;
+
+int take_util(char * stream, int stream_len, int * pos, char * to, int to_len, char stop)
 {
     int old_pos = *pos;
     if (!stream) {
@@ -18,30 +25,55 @@ void take_util(char * stream, int stream_len, int * pos, char * to, int to_len, 
     }
     if (stream[*pos] != stop) {
         *pos = old_pos;
-        return;
+        return 0;
     }
 
     int count = *pos - old_pos;
     if (to && count > 0) {
-        memcpy(to, stream + old_pos, count > to_len ? to_len:count);
+        int to_copy = count > to_len - 1 ? to_len-1:count;
+        memcpy(to, stream + old_pos, to_copy);
+        to[to_copy] = 0;
+        return 1;
     }
+    return 0;
 }
 
-int handle_http_request(char * buff, int len)
+int take_header(char * buff, int len, int * pos, char * to, int to_len)
 {
-    int close = 1;
-    char method[10] = {0}, uri[512] = {0}, version[20] = {0};
+    if (take_util(buff, len, pos, to, to_len, '\r')) {
+        (*pos) ++;
+        if (buff[*pos] != '\n') {
+            return 0;
+        }
+        (*pos) ++;
+        return 1;
+    }
+    return 0;
+}
 
+int parse_http_request(char * buff, int len, http_request_t * request)
+{
     int byte_took = 0;
-    take_util(buff, len, &byte_took, method, 9, ' ');
+    take_util(buff, len, &byte_took, request->method, 10, ' ');
     byte_took ++;
-    take_util(buff, len, &byte_took, uri, 511, ' ');
+    take_util(buff, len, &byte_took, request->uri, 512, ' ');
     byte_took ++;
-    take_util(buff, len, &byte_took, version, 19, '\r');
+    take_util(buff, len, &byte_took, request->version, 10, '\r');
+    byte_took ++;
 
-    printf("|%s|%s|%s|\n", method, uri, version);
-    fflush(stdout);
-    return close;
+    if (buff[byte_took] != '\n') {
+        return 0;
+    }
+    byte_took ++;
+
+
+    printf("|%s|%s|%s|\n", request->method, request->uri, request->version);
+
+    char header[256];
+    while (take_header(buff, len, &byte_took, header, 255)) {
+        printf("%s\n", header);
+    }
+    return 1;
 }
 
 void async_handle_connection(int conn)
@@ -56,24 +88,25 @@ void async_handle_connection(int conn)
 
         used += rc;
         if (strstr(buff + used - rc, "\r\n\r\n")) {
-            handle_http_request(buff, used);
+            http_request_t request;
+            if (parse_http_request(buff, used, &request)) {
+                char *content = 
+                    "<html>"
+                    "<head><title>hello coroutine</title></head>"
+                    "<body><h1>hello coroutine</h1></body>"
+                    "</html>";
+                char * template = 
+                    "HTTP/1.1 200 OK\r\n"
+                    "content-type: text/html\r\n"
+                    "content-length: %d\r\n"
+                    "\r\n\r\n"
+                    "%s";
 
-            char *content = 
-                "<html>"
-                "<head><title>hello coroutine</title></head>"
-                "<body><h1>hello coroutine</h1></body>"
-                "</html>";
-            char * template = 
-                "HTTP/1.1 200 OK\r\n"
-                "content-type: text/html\r\n"
-                "content-length: %d\r\n"
-                "\r\n\r\n"
-                "%s";
-
-            char response_buff[1024] = {0};
-            sprintf(response_buff, template, strlen(content), content);
-            send(conn, response_buff, strlen(response_buff), 0);
-            used = 0;
+                char response_buff[1024] = {0};
+                sprintf(response_buff, template, strlen(content), content);
+                send(conn, response_buff, strlen(response_buff), 0);
+                used = 0;
+            }
         }
         if (used == 1024) {
             break;
@@ -86,7 +119,6 @@ void async_handle_connection(int conn)
 void async_main()
 {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
-    printf("socket %d\n", sock);
 
     sockaddr_in bind_info; 
     bind_info.sin_family = AF_INET;
@@ -122,7 +154,7 @@ void test(int input)
 int main()
 {
 
-    co_init(10);
+    co_init();
     co_event_init();
 
     int amain = co_create(async_main, NULL);
