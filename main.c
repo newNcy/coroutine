@@ -13,8 +13,8 @@ void take_util(char * stream, int stream_len, int * pos, char * to, int to_len, 
 	if (!stream) {
 		return 0;
 	}
-	while(* pos != stream_len && stream[*pos] != stop) {	
-		*pos ++;	
+	while(* pos < stream_len && stream[*pos] != stop) {	
+		(*pos) ++;	
 	}
 	if (*pos != stop) {
 		*pos = old_pos;
@@ -29,7 +29,6 @@ void take_util(char * stream, int stream_len, int * pos, char * to, int to_len, 
 
 int handle_http_request(char * buff, int len)
 {
-	return 1;
 	int close = 1;
 	char method[10] = {0}, uri[512] = {0}, version[20] = {0};
 
@@ -56,16 +55,21 @@ void async_handle_connection(int conn)
 		if (strstr(buff + used - rc, "\r\n\r\n")) {
 			handle_http_request(buff, used);
 			
-			char content = "";
-			char template = 
-				"200 OK\r\n"
+			char *content = 
+				"<html>"
+				"<head><title>hello coroutine</title></head>"
+				"<body><h1>hello coroutine</h1></body>"
+				"</html>";
+			char * template = 
+				"HTTP/1.1 200 OK\r\n"
 				"content-type: text/html\r\n"
-				"content-length: 24\r\n"
+				"content-length: %d\r\n"
 				"\r\n\r\n"
-				"<h1>hello coroutine</h1>";
+				"%s";
 
 			char response_buff[1024] = {0};
-			send(conn, template, strlen(template), 0);
+			sprintf(response_buff, template, strlen(content), content);
+			send(conn, response_buff, strlen(response_buff), 0);
 			used = 0;
 		}
 		if (used == 1024) {
