@@ -5,11 +5,19 @@
 #define CO_STACK_SIZE 1024 * 128
 #define true 1
 
-#ifdef DEBUG
-#define debug(fmt,...) printf("[debug] [%d] "fmt"\n", co_running(),  ##__VA_ARGS__)
+#ifdef LOG_DEBUG
+#define co_debug(fmt,...) printf("[debug] [%d] "fmt"\n", co_running(),  ##__VA_ARGS__)
 #else
-#define debug
+#define co_debug
 #endif
+
+#ifdef LOG_INFO
+#define co_info(fmt,...) printf("[info] [%d] "fmt"\n", co_running(),  ##__VA_ARGS__)
+#else
+#define co_info
+#endif
+
+
 
 typedef enum 
 {
@@ -28,6 +36,7 @@ void co_resume(int co);
 void co_start(void * entrry, void * args);
 void co_yield();
 int co_running();
+int co_count();
 void co_finish();
 int co_is_all_finish();
 

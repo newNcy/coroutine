@@ -33,13 +33,13 @@ int array_push_back(array_t * array, any_t any)
     if (array->size == array->capacity) {
         if (array->capacity == 0) {
             int cap = 10;
-            array->data = (any_t*)malloc(array->capacity * sizeof(any_t));
+            array->data = (any_t*)malloc(cap * sizeof(any_t));
             if (array->data) {
                 array->capacity = 10;
             }
         } else {
             int cap = 2 * array->capacity;
-            any_t * new_data = (any_t*)realloc(array->data, array->capacity * sizeof(any_t));
+            any_t * new_data = (any_t*)realloc(array->data, cap * sizeof(any_t));
             if (new_data) {
                 array->capacity = cap;
                 array->data = new_data;

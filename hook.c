@@ -148,12 +148,12 @@ void co_io_add(fd)
     event.data.fd = co_running();
     event.events = EPOLLIN | EPOLLOUT;
     epoll_ctl(co_io_mgr.epoll_id, EPOLL_CTL_ADD, fd, &event);
-    debug("%d add to io set", fd);
+    co_debug("%d add to io set", fd);
 }
 
 void co_io_del(fd)
 {
-    debug("%d remove from io set", fd);
+    co_debug("%d remove from io set", fd);
     epoll_ctl(co_io_mgr.epoll_id, EPOLL_CTL_DEL, fd, NULL);
 }
 
@@ -169,10 +169,10 @@ int socket(int domain, int type, int protocal)
 int accept(int fd, struct sockaddr * addr, socklen_t * len)
 {
     HOOK_FUNC(accept);
-    debug("async accept");
+    co_debug("async accept");
     co_io_wait(fd, EPOLLIN);
     int sock = _accept(fd, addr, len);
-    debug("async accept finish");
+    co_debug("async accept finish");
     co_io_add(sock);
     return sock;
 }
@@ -200,18 +200,18 @@ int connect(int fd, const struct sockaddr * addr, socklen_t len)
 ssize_t recv(int fd, void * buff, size_t len, int flags) 
 {
     HOOK_FUNC(recv);
-    debug("async recv");
+    co_debug("async recv");
     co_io_wait(fd, EPOLLIN);
-    debug("async recv finish");
+    co_debug("async recv finish");
     return _recv(fd, buff, len, flags);
 }
 
 ssize_t send(int fd, const void * buff, size_t len, int flags)
 {
     HOOK_FUNC(send);
-    debug("async send");
+    co_debug("async send");
     co_io_wait(fd, EPOLLOUT);
-    debug("async send finish");
+    co_debug("async send finish");
     return _send(fd, buff, len, flags);
 }
 

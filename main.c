@@ -4,6 +4,8 @@
 #include <arpa/inet.h>
 #include <string.h>
 
+#include "heap.h"
+
 typedef struct sockaddr_in sockaddr_in;
 typedef struct sockaddr sockaddr;
 
@@ -67,11 +69,11 @@ int parse_http_request(char * buff, int len, http_request_t * request)
     byte_took ++;
 
 
-    printf("|%s|%s|%s|\n", request->method, request->uri, request->version);
+    co_info("|%s|%s|%s|", request->method, request->uri, request->version);
 
     char header[256];
     while (take_header(buff, len, &byte_took, header, 255)) {
-        printf("%s\n", header);
+        co_info("%s", header);
     }
     return 1;
 }
@@ -132,6 +134,7 @@ void async_main()
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &dummy, sizeof(dummy));
     if (err) {
         printf("bind failed\n");
+        close(sock);
         return;
     }
 
@@ -142,30 +145,51 @@ void async_main()
         int conn = accept(sock, (sockaddr *)&client, &len);
         unsigned char * ip = (char*)&client.sin_addr.s_addr;
         printf("[%d.%d.%d.%d:%d]\n", ip[0], ip[1], ip[2], ip[3], htons(client.sin_port));
-        int co = co_create(async_handle_connection, (void*)conn);
-        co_resume(co);
+        co_start(async_handle_connection, conn);
     }
 }
 
-void co_sleep()
+void co_sleep(int s)
 {
     while (1) {
-        debug("sleep 1s");
-        sleep(1);
+        co_info("sleep 1s");
+        sleep(s);
     }
+}
+
+void show_schedule()
+{
+    while (1) {
+        co_info("http server runing");
+        sleep(3);
+    }
+}
+
+int compare(any_t a, any_t b)
+{
+    return a < b;
 }
 
 int main()
 {
+    heap_t heap;
+    heap_init(&heap, compare);
+    heap_push(&heap, 5);
+    heap_push(&heap, 4);
+    heap_push(&heap, 3);
+    heap_push(&heap, 2);
+    heap_push(&heap, 1);
 
+    /*
     co_init();
     co_event_init();
 
-    //int amain = co_create(async_main, NULL);
-    //co_resume(amain);
+    co_start(async_main, 0);
+    co_start(show_schedule, 3);
 
     co_event_loop();
     printf("done\n");
     co_finish();
+    */
     return 0;
 }
