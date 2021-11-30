@@ -127,6 +127,11 @@ void co_resume(int id)
 
 }
 
+void co_start(void * entry, void * args)
+{
+    co_resume(co_create(entry, args));
+}
+
 void co_yield()
 {
     int id = schedule.running;

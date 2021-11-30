@@ -25,6 +25,7 @@ typedef void * (*coroutine_entry_t)(void *args);
 void co_init();
 int co_create(void *entry, void * args);
 void co_resume(int co);
+void co_start(void * entrry, void * args);
 void co_yield();
 int co_running();
 void co_finish();

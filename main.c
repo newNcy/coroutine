@@ -147,14 +147,22 @@ void async_main()
     }
 }
 
+void co_sleep()
+{
+    while (1) {
+        debug("sleep 1s");
+        sleep(1);
+    }
+}
+
 int main()
 {
 
     co_init();
     co_event_init();
 
-    int amain = co_create(async_main, NULL);
-    co_resume(amain);
+    //int amain = co_create(async_main, NULL);
+    //co_resume(amain);
 
     co_event_loop();
     printf("done\n");
