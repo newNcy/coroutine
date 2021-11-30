@@ -83,6 +83,7 @@ int array_erase(array_t * array, int index)
     for (; index < array->size - 1; ++ index) {
         array_set(array, index, array_get(array, index + 1));
     }
+    array->size --;
     return 1;
 }
 

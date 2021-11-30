@@ -1,7 +1,7 @@
 #define _GNU_SOURCE
 #include "coroutine.h"
 
-#include <time.h>
+#include <sys/time.h>
 #include <malloc.h>
 #include <string.h>
 #include <dlfcn.h>
@@ -12,20 +12,13 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "heap.h"
+
 typedef struct co_timer_t 
 {
     int co_id;
-    time_t expiration_time;
-	struct timeval tv;
-    struct co_timer_t * next;
+	struct timeval expiration_time;
 }co_timer_t;
-
-typedef struct co_timer_mgr_t
-{
-    co_timer_t * head;
-}co_timer_mgr_t;
-
-
 
 typedef struct co_io_mgr_t
 {
@@ -34,81 +27,57 @@ typedef struct co_io_mgr_t
     struct epoll_event * epoll_events;
 } co_io_mgr_t;
 
-co_timer_mgr_t co_timer_mgr = {0};
+heap_t timer_heap = {0};
+
 co_io_mgr_t co_io_mgr = {0};
 
-void print_tmgr()
+int timeval_less(struct timeval * lhs, struct timeval * rhs)
 {
-    co_timer_t * cur = co_timer_mgr.head;
-    int max = 20;
-    int i = 0; 
-    while (cur) {
-        ++ i;
-        if (i >= max) {
-            printf("xxx\n");
-            break;
-        }
-        printf("[%d:%d]\n", cur->co_id, cur->expiration_time);
-        cur = cur->next;
+    return lhs->tv_sec < rhs->tv_sec || lhs->tv_sec == rhs->tv_sec && lhs->tv_usec < rhs->tv_usec;
+}
+
+int timer_compare(co_timer_t * lhs, co_timer_t * rhs)
+{
+    return timeval_less(&lhs->expiration_time, &rhs->expiration_time);
+}
+
+int usleep(useconds_t us)
+{
+    if (us <= 0) {
+        return 0;
     }
+    co_timer_t * timer = (co_timer_t*)malloc(sizeof(co_timer_t));
+    timer->co_id = co_running();
+    gettimeofday(&timer->expiration_time, NULL);
+    timer->expiration_time.tv_sec += us/1000000;
+    timer->expiration_time.tv_usec += us%1000000;
+    heap_push(&timer_heap, timer);
+    co_yield();
+    return 1;
 }
 
 unsigned int sleep(unsigned int s)
 {
-    if (s <= 0) {
-        return;
-    }
-    co_timer_t * timer = (co_timer_t*)malloc(sizeof(co_timer_t));
-    timer->co_id = co_running();
-    timer->expiration_time = time(0) + s;
-    timer->next = NULL;
-
-    //printf("%d sleep %d\n", timer->co_id, s);
-    //print_tmgr();
-    if (!co_timer_mgr.head) {
-        //printf("first one\n");
-        co_timer_mgr.head = timer;
-    } else {
-        // todo 换成小根堆
-        if (co_timer_mgr.head->expiration_time > timer->expiration_time) {
-            //printf("insert as head\n");
-            timer->next = co_timer_mgr.head;
-            co_timer_mgr.head = timer;
-        }else {
-            //printf("insert inside\n");
-            co_timer_t * cur = co_timer_mgr.head;
-            while (cur->next && cur->next->expiration_time < timer->expiration_time) {
-                cur = cur->next;
-            }
-            timer->next = cur->next;
-            cur->next = timer;
-        }
-    }
-    //print_tmgr();
-    co_yield();
+    return usleep(s * 1000 * 1000);
 }
 
-int has_timer()
+suseconds_t process_timer()
 {
-    return co_timer_mgr.head != NULL;
-}
-
-void process_timer()
-{
-    co_timer_t * cur = co_timer_mgr.head;
-    time_t now = time(0);
-    while (cur) {
-        if (cur->expiration_time <= now) {
-            int id = cur->co_id;
-            co_timer_t * next = cur->next;
-            free(cur);
-            co_timer_mgr.head = cur = next;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    while (!heap_empty(&timer_heap)) {
+        co_timer_t * timer = (co_timer_t*)heap_top(&timer_heap);
+        if (timeval_less(&now, &timer->expiration_time)) {
+            return (timer->expiration_time.tv_sec - now.tv_sec) * 1000 + (timer->expiration_time.tv_usec - now.tv_usec)/1000;
+        } else {
+            int id = timer->co_id;
+            free(timer);
+            heap_pop(&timer_heap);
 
             co_resume(id);
-        } else {
-            break;
         }
     }
+    return -1;
 }
 
 
@@ -121,6 +90,8 @@ typedef int (*connect_func_t)(int fd, const struct sockaddr *addr, socklen_t len
 typedef int (*recv_func_t)(int fd, void * buf, size_t len, int flags);
 typedef int (*send_func_t)(int fd, void * buf, size_t len, int flags);
 typedef int (*close_func_t)(int fd);
+
+//todo open read write ...
 
 
 int setnoblocking(int fd)
@@ -222,21 +193,23 @@ int close(int fd)
     return _close(fd);
 }
 
+
+
 void co_event_init()
 {
-    co_io_mgr.epoll_max = 100;
+    co_io_mgr.epoll_max = 1024;
     co_io_mgr.epoll_id = epoll_create(1);
     co_io_mgr.epoll_events = (struct epoll_event*)malloc(co_io_mgr.epoll_max * sizeof(struct epoll_event));
     memset(co_io_mgr.epoll_events, 0, co_io_mgr.epoll_max * sizeof(struct epoll_event));
+
+    heap_init(&timer_heap, timer_compare);
 }
 
 void co_event_loop()
 {
     while (1) {
-        if ( has_timer()) {
-            process_timer();
-        }
-        int ready = epoll_wait(co_io_mgr.epoll_id, co_io_mgr.epoll_events, co_io_mgr.epoll_max, 0);
+        suseconds_t next_wake = process_timer();
+        int ready = epoll_wait(co_io_mgr.epoll_id, co_io_mgr.epoll_events, co_io_mgr.epoll_max, next_wake);
         if (ready > 0) {
             for (int i = 0; i < ready; ++ i) {
                 int co = co_io_mgr.epoll_events[i].data.fd;

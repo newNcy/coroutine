@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "heap.h"
 
@@ -149,19 +150,11 @@ void async_main()
     }
 }
 
-void co_sleep(int s)
+void co_sleep(int us)
 {
     while (1) {
-        co_info("sleep 1s");
-        sleep(s);
-    }
-}
-
-void show_schedule()
-{
-    while (1) {
-        co_info("http server runing");
-        sleep(3);
+        co_info("usleep %d", us);
+        usleep(us);
     }
 }
 
@@ -172,24 +165,13 @@ int compare(any_t a, any_t b)
 
 int main()
 {
-    heap_t heap;
-    heap_init(&heap, compare);
-    heap_push(&heap, 5);
-    heap_push(&heap, 4);
-    heap_push(&heap, 3);
-    heap_push(&heap, 2);
-    heap_push(&heap, 1);
-
-    /*
     co_init();
     co_event_init();
 
-    co_start(async_main, 0);
-    co_start(show_schedule, 3);
-
+    //co_start(async_main, 0);
+    co_start(co_sleep, 1000000);
     co_event_loop();
     printf("done\n");
     co_finish();
-    */
     return 0;
 }

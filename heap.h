@@ -8,8 +8,8 @@ typedef struct
 } heap_t;
 
 void heap_init(heap_t * heap, any_compare_t compare);
-int heap_insert(heap_t * heap, any_t any);
+int heap_push(heap_t * heap, any_t any);
 any_t heap_top(heap_t * heap);
-int heap_pop(heap_t * heap);
+void heap_pop(heap_t * heap);
 int heap_size(heap_t * heap);
 int heap_empty(heap_t * heap);
