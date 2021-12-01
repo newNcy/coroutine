@@ -200,6 +200,11 @@ map_iterator_t map_find(map_t * map, any_t key)
     return iter;
 }
 
+int map_iterator_valid(map_t * map, map_iterator_t iter)
+{
+    return iter != nullptr;
+}
+
 any_t map_iterator_get( map_iterator_t iter)
 {
     return iter->value;

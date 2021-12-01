@@ -172,6 +172,7 @@ int compare_e(any_t a, any_t b)
 int main()
 {
 
+    /*
     map_t map;
     map_init(&map, compare, compare_e);
     map_set(&map, 1, 1);
@@ -185,16 +186,14 @@ int main()
     }
 
     map_destroy(&map);
-    /*
+    */
 
     co_init();
     co_event_init();
 
-    //co_start(async_main, 0);
-    co_start(co_sleep, 1000000);
+    co_start(async_main, 0);
     co_event_loop();
     printf("done\n");
     co_finish();
-    */
     return 0;
 }

@@ -22,6 +22,12 @@ typedef struct co_timer_t
 	struct timeval expiration_time;
 }co_timer_t;
 
+typedef struct
+{
+    int read_co;
+    int write_co;
+} wait_info_t;
+
 typedef struct co_io_mgr_t
 {
     int epoll_id;
@@ -109,20 +115,38 @@ int setnoblocking(int fd)
 
 void co_io_wait(int fd, int events)
 {
-    struct epoll_event event;
-    event.data.fd = co_running();
-    event.events = events;
-    epoll_ctl(co_io_mgr.epoll_id, EPOLL_CTL_MOD, fd, &event);
+    map_iterator_t iter = map_find(&co_io_mgr.wait_map, fd);
+    wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
+    int cur = co_running();
+    if (events & EPOLLIN) {
+        wait->read_co = cur;
+        if (wait->write_co == cur) {
+            wait->write_co = CO_ID_INVALID;
+        }
+    } else if (events & EPOLLOUT) {
+        wait->write_co = cur;
+        if (wait->read_co == cur) {
+            wait->read_co = CO_ID_INVALID;
+        }
+    }
     co_yield();
 }
 
 void co_io_add(fd)
 {
     map_iterator_t iter = map_find(&co_io_mgr.wait_map, fd);
+    wait_info_t * wait = nullptr;
     if (map_iterator_valid(&co_io_mgr.wait_map, iter)) {
+        wait = map_iterator_get(iter);
+    } else {
+        wait = (wait_info_t*)malloc(sizeof(wait_info_t));
+        wait->read_co = CO_ID_INVALID;
+        wait->write_co = CO_ID_INVALID;
+        map_set(&co_io_mgr.wait_map, fd, wait);
     }
+
     struct epoll_event event;
-    event.data.fd = co_running();
+    event.data.ptr = wait;
     event.events = EPOLLIN | EPOLLOUT;
     epoll_ctl(co_io_mgr.epoll_id, EPOLL_CTL_ADD, fd, &event);
     co_debug("%d add to io set", fd);
@@ -200,7 +224,6 @@ int close(int fd)
 }
 
 
-
 void co_event_init()
 {
     co_io_mgr.epoll_max = 1024;
@@ -209,6 +232,7 @@ void co_event_init()
     memset(co_io_mgr.epoll_events, 0, co_io_mgr.epoll_max * sizeof(struct epoll_event));
 
     heap_init(&timer_heap, timer_compare);
+    map_init(&co_io_mgr.wait_map, less, equals);
 }
 
 void co_event_loop()
@@ -218,8 +242,14 @@ void co_event_loop()
         int ready = epoll_wait(co_io_mgr.epoll_id, co_io_mgr.epoll_events, co_io_mgr.epoll_max, next_wake);
         if (ready > 0) {
             for (int i = 0; i < ready; ++ i) {
-                int co = co_io_mgr.epoll_events[i].data.fd;
-                co_resume(co);
+                int events = co_io_mgr.epoll_events[i].events; 
+                wait_info_t * wait = (wait_info_t*)co_io_mgr.epoll_events[i].data.ptr; 
+                if (events & EPOLLIN) {
+                    co_resume(wait->read_co);
+                }
+                if (events & EPOLLOUT) {
+                    co_resume(wait->write_co);
+                }
             }
         }
         if (co_is_all_finish()) {
