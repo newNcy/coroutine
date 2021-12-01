@@ -5,6 +5,7 @@ enable_language(ASM)
 add_library(container
         array.c
         heap.c
+        list.c
         map.c
         )
 

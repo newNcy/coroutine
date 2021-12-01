@@ -13,6 +13,8 @@
 #include <unistd.h>
 
 #include "heap.h"
+#include "map.h"
+#include "list.h"
 
 typedef struct co_timer_t 
 {
@@ -25,6 +27,7 @@ typedef struct co_io_mgr_t
     int epoll_id;
     int epoll_max;
     struct epoll_event * epoll_events;
+    map_t wait_map;
 } co_io_mgr_t;
 
 heap_t timer_heap = {0};
@@ -115,6 +118,9 @@ void co_io_wait(int fd, int events)
 
 void co_io_add(fd)
 {
+    map_iterator_t iter = map_find(&co_io_mgr.wait_map, fd);
+    if (map_iterator_valid(&co_io_mgr.wait_map, iter)) {
+    }
     struct epoll_event event;
     event.data.fd = co_running();
     event.events = EPOLLIN | EPOLLOUT;
@@ -220,6 +226,8 @@ void co_event_loop()
             break;
         }
     }
+    heap_destroy(&timer_heap);
+    map_destroy(&co_io_mgr.wait_map);
 }
 
 
