@@ -1,12 +1,12 @@
 #include "map.h"
 
-void rb_node_free(rb_node_t * node) 
+void rb_node_destroy(rb_node_t * node) 
 {
     if (!node) {
         return;
     }
-    rb_node_free(node->left);
-    rb_node_free(node->right);
+    rb_node_destroy(node->left);
+    rb_node_destroy(node->right);
 
     node->left = nullptr;
     node->right = nullptr;
@@ -52,6 +52,7 @@ rb_node_t * rb_rotate_right(rb_node_t * node)
     return left;
 }
 
+
 void rb_node_init(rb_node_t * node)
 {
     node->parent = nullptr;
@@ -71,12 +72,6 @@ rb_node_t * rb_node_create(any_t key, any_t value)
     return node;
 }
 
-void rb_node_destroy(rb_node_t * node)
-{
-    rb_node_init(node);
-    free(node);
-}
-
 void map_init(map_t * map, any_compare_t less, any_compare_t equals)
 {
     map->root = nullptr;
@@ -89,7 +84,7 @@ void map_init(map_t * map, any_compare_t less, any_compare_t equals)
 
 void map_destroy(map_t * map)
 {
-    rb_node_free(map->root);
+    rb_node_destroy(map->root);
 
     map_init(map, nullptr, nullptr);
 }
@@ -175,6 +170,63 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
         map->root->color = RB_COLOR_BLACK;
     }
     return ret;
+}
+
+void map_transplant(map_t * map, rb_node_t * u, rb_node_t * v)
+{
+    if (map->root == u) {
+    }
+}
+
+void map_erase_iter(map_t * map, map_iterator_t iter)
+{
+    if (!iter) {
+        return;
+    }
+
+    rb_node_t ** to_transplant = nullptr;
+    rb_node_t * parent = iter->parent;
+    if (!iter->parent) {
+        to_transplant = &map->root;
+    } else {
+        if (iter == iter->parent->left) {
+            to_transplant = &iter->parent->left;
+        } else {
+            to_transplant = &iter->parent->right;
+        }
+    }
+
+    if (!iter->left || !iter->right) {
+        if (!iter->left) {
+            *to_transplant = iter->right;
+        } else if (!iter->right) {
+            *to_transplant = iter->left;
+        }
+        rb_node_destroy(iter);
+        if (*to_transplant) {
+            *to_transplant->parent = parent;
+        }
+    } else {
+        rb_node_t * next = iter->right;
+        while (next->left) {
+            next = next->left;
+        }
+
+        if (next->right && next != iter->right) {
+            next->parent->right = next->right;
+            next->right->parent = next->parent;
+        }
+    }
+}
+
+void map_erase_key(map_t * map, any_t key)
+{
+    if (!map || !map->less || !map->equals) {
+        return;
+    }
+
+    map_iterator_t iter = map_find(map, key);
+    map_erase_iter(map, iter);
 }
 
 map_iterator_t map_find(map_t * map, any_t key)
