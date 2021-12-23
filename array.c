@@ -1,5 +1,5 @@
 #include "array.h"
-#include <malloc.h>
+#include <stdlib.h>
 
 void array_init(array_t * array)
 {
