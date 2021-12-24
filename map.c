@@ -1,4 +1,5 @@
 #include "map.h"
+#include <stdlib.h>
 
 void rb_node_destroy(rb_node_t * node) 
 {
@@ -17,7 +18,7 @@ void rb_node_destroy(rb_node_t * node)
 rb_node_t * rb_rotate_left(rb_node_t * node)
 {
     if (!node) {
-        return;
+        return nullptr;
     }
     rb_node_t * left = node->left;
     rb_node_t * right = node->right;
@@ -36,7 +37,7 @@ rb_node_t * rb_rotate_left(rb_node_t * node)
 rb_node_t * rb_rotate_right(rb_node_t * node)
 {
     if (!node) {
-        return;
+        return nullptr;
     }
     rb_node_t * left = node->left;
     rb_node_t * right = node->right;

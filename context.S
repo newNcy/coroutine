@@ -1,9 +1,5 @@
-.global  swap_ctx
-
-#input 
-#
-#if defined(__x86_64__)
-swap_ctx:
+.global  _swap_ctx
+_swap_ctx:
     movq (%rsp), %rax
     movq %rsp, (%rdi)
     movq %rbp, 8(%rdi)
@@ -29,7 +25,5 @@ swap_ctx:
     // pass args when enter function
     movq 24(%rsi), %rdi
     movq 32(%rsi), %rsi
-
     ret
 
-#endif

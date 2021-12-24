@@ -1,6 +1,6 @@
 #include "coroutine.h"
 #include <string.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include "array.h"
 
 typedef uint64_t reg_t;
