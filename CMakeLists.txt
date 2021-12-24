@@ -22,8 +22,7 @@ target_link_libraries(coroutine container )
 add_definitions("-g -DLOG_INFO -DLOG_DEBUG")
 
 add_executable(test_io main.c)
-
-add_executable(test_ctx test_ctx.c)
-
 target_link_libraries(test_io coroutine dl coroutine_hook)
-target_link_libraries(test_ctx coroutine dl)
+
+add_subdirectory(tests)
+

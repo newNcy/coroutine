@@ -1,0 +1,1 @@
+/usr/bin/cc -rdynamic CMakeFiles/test_container.dir/test_container.o -o test_container  ../libcontainer.a 

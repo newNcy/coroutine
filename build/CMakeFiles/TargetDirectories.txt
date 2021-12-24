@@ -1,0 +1,10 @@
+/root/projects/coroutine/build/CMakeFiles/rebuild_cache.dir
+/root/projects/coroutine/build/CMakeFiles/test_io.dir
+/root/projects/coroutine/build/CMakeFiles/coroutine_hook.dir
+/root/projects/coroutine/build/CMakeFiles/edit_cache.dir
+/root/projects/coroutine/build/CMakeFiles/container.dir
+/root/projects/coroutine/build/CMakeFiles/coroutine.dir
+/root/projects/coroutine/build/tests/CMakeFiles/rebuild_cache.dir
+/root/projects/coroutine/build/tests/CMakeFiles/test_ctx.dir
+/root/projects/coroutine/build/tests/CMakeFiles/edit_cache.dir
+/root/projects/coroutine/build/tests/CMakeFiles/test_container.dir

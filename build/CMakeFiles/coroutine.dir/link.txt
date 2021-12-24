@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcoroutine.a CMakeFiles/coroutine.dir/coroutine.o CMakeFiles/coroutine.dir/context.o
+/usr/bin/ranlib libcoroutine.a

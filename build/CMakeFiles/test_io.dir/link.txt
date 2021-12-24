@@ -1,0 +1,1 @@
+/usr/bin/cc -rdynamic CMakeFiles/test_io.dir/main.o -o test_io   -L/root/projects/coroutine/build  libcoroutine.a -ldl libcoroutine_hook.a libcontainer.a 

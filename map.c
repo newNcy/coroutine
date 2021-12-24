@@ -173,9 +173,28 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
     return ret;
 }
 
-void map_transplant(map_t * map, rb_node_t * u, rb_node_t * v)
+rb_node_t * rb_minimum(rb_node_t * root)
 {
-    if (map->root == u) {
+    while (root && root->left) {
+        root = root->left;
+    }
+    return root;
+}
+
+void rb_transplant(rb_tree_t * tree, rb_node_t * u, rb_node_t * v)
+{
+    if (tree->root == u) {
+        tree->root = v;
+    }
+
+    if (u == u->parent->left) {
+        u->parent->left = v;
+    } else {
+        u->parent->right = v;
+    }
+
+    if (v) {
+        v->parent = u->parent;
     }
 }
 
@@ -185,38 +204,33 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
         return;
     }
 
-    rb_node_t ** to_transplant = nullptr;
-    rb_node_t * parent = iter->parent;
-    if (!iter->parent) {
-        to_transplant = &map->root;
+    rb_node_t * y = iter;
+    rb_color_t * y_origin_color = iter->color;
+    rb_node_t * x = nullptr;
+
+    if (!iter->left) {
+        x = iter->right;
+        rb_transplant(map, iter, iter->right);
+    } else if (!iter->right) {
+        x = iter->left;
+        rb_transplant(map, iter, iter->left);
     } else {
-        if (iter == iter->parent->left) {
-            to_transplant = &iter->parent->left;
-        } else {
-            to_transplant = &iter->parent->right;
+        y = rb_minimum(iter->right);
+        y_origin_color = y->color;
+        x = y->right;
+        if (y->parent != iter) {
+            rb_transplant(map, y, y->right);
+            y->right = iter->right;
+            y->right->parent = y;
         }
+
+        rb_transplant(may, iter, y);
+        y->left = iter->left;
+        y->right = iter->right;
+        y->color = iter->color;
     }
 
-    if (!iter->left || !iter->right) {
-        if (!iter->left) {
-            *to_transplant = iter->right;
-        } else if (!iter->right) {
-            *to_transplant = iter->left;
-        }
-        rb_node_destroy(iter);
-        if (*to_transplant) {
-            (*to_transplant)->parent = parent;
-        }
-    } else {
-        rb_node_t * next = iter->right;
-        while (next->left) {
-            next = next->left;
-        }
-
-        if (next->right && next != iter->right) {
-            next->parent->right = next->right;
-            next->right->parent = next->parent;
-        }
+    if (y_origin_color == RB_COLOR_BLACK) {
     }
 }
 
