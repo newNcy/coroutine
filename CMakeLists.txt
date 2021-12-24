@@ -19,7 +19,7 @@ add_library(coroutine_hook
 	)
 target_link_libraries(coroutine container )
 
-add_definitions("-g -DLOG_INFO")
+add_definitions("-g -DLOG_INFO -DLOG_DEBUG")
 
 add_executable(test_io main.c)
 

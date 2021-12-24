@@ -64,6 +64,7 @@ void co_init()
 		schedule.running = CO_ID_INVALID;
 		array_init(&schedule.coroutines);
 		atexit(co_finish);
+        inited = 1;
 	}
 }
 
@@ -129,7 +130,7 @@ void co_resume(int id)
         coroutine_t * co = array_get(&schedule.coroutines, id);
         if (co && co->status == CO_SUSPEND) {
             co->status = CO_RUNNING;
-            co_debug("[%d] resume [%d]", schedule.running, id);
+            co_debug("resume [%d]", id);
             co->last_id = schedule.running;
             schedule.running = id;
             swap_ctx(&co->main, &co->ctx);
@@ -153,7 +154,7 @@ void co_yield()
             if (co->status != CO_FINISH) {
                 co->status = CO_SUSPEND;
             }
-            co_debug("[%d] %s [%d]", schedule.running, co->status == CO_FINISH?"finish,back to":"yield", co->last_id);
+            co_debug("%s [%d]", co->status == CO_FINISH?"finish,back to":"yield", co->last_id);
             schedule.running = co->last_id;
             swap_ctx(&co->ctx, &co->main);
         }
