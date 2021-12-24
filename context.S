@@ -1,4 +1,3 @@
-
 #if defined(__APPLE__)
 .global  _swap_ctx
 _swap_ctx:

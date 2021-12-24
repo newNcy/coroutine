@@ -132,9 +132,9 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
     }
 
     /* insert-fixup */
-    
-    while (ret->parent->color == RB_COLOR_RED) {
-        rb_node_t * parent = ret->parent;
+    rb_node_t * node = ret;
+    while (node->parent && node->parent->color == RB_COLOR_RED) {
+        rb_node_t * parent = node->parent;
         rb_node_t * grandp = parent->parent;
         rb_node_t * uncle = grandp->left != parent? grandp->left : grandp->right;
 
@@ -142,14 +142,14 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
             parent->color = RB_COLOR_BLACK;
             uncle->color = RB_COLOR_BLACK;
             grandp->color = RB_COLOR_RED;
-            parent = grandp->parent;
+            node = grandp;
         } else {
-            if (ret == parent->left && uncle == grandp->left) {
+            if (node == parent->left && uncle == grandp->left) {
                 grandp->right = rb_rotate_right(parent);
-                ret = parent;
-            } else if (ret == parent->right && uncle == grandp->right) {
+                node = parent;
+            } else if (node == parent->right && uncle == grandp->right) {
                 grandp->left = rb_rotate_left(parent);
-                ret = parent;
+                node = parent;
             } else {
                 rb_node_t ** grandp_ptr = nullptr;
                 if (!grandp->parent) {
@@ -159,7 +159,7 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
                 }
                 parent->color = RB_COLOR_BLACK;
                 grandp->color = RB_COLOR_RED;
-                if (ret == parent->left && uncle == grandp->right) {
+                if (node == parent->left && uncle == grandp->right) {
                     *grandp_ptr = rb_rotate_right(grandp);
                 } else {
                     *grandp_ptr = rb_rotate_left(grandp);
