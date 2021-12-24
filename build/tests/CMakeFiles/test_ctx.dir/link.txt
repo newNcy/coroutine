@@ -1,1 +1,0 @@
-/usr/bin/cc -rdynamic CMakeFiles/test_ctx.dir/test_ctx.o -o test_ctx   -L/root/projects/coroutine/build  ../libcoroutine.a -ldl ../libcontainer.a 

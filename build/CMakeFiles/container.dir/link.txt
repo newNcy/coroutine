@@ -1,2 +1,0 @@
-/usr/bin/ar qc libcontainer.a CMakeFiles/container.dir/array.o CMakeFiles/container.dir/heap.o CMakeFiles/container.dir/list.o CMakeFiles/container.dir/map.o
-/usr/bin/ranlib libcontainer.a

@@ -1,2 +1,0 @@
-/usr/bin/ar qc libcoroutine_hook.a CMakeFiles/coroutine_hook.dir/hook.o
-/usr/bin/ranlib libcoroutine_hook.a
