@@ -141,6 +141,8 @@ void async_main()
     }
 
     err = listen(sock, 100);
+    
+    co_info("listen on %d", 1224);
     while(true) {
         sockaddr_in client;
         int len = sizeof(client);
@@ -191,6 +193,7 @@ int main()
     co_init();
     co_event_init();
 
+    co_start(co_sleep, 1000000);
     co_start(async_main, 0);
     co_event_loop();
     printf("done\n");
