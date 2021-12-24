@@ -1,5 +1,5 @@
-.global  _swap_ctx
-_swap_ctx:
+.global  swap_ctx
+swap_ctx:
     movq (%rsp), %rax
     movq %rsp, (%rdi)
     movq %rbp, 8(%rdi)
