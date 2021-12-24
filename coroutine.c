@@ -59,8 +59,12 @@ void co_bootstrap(coroutine_t * co, void * args)
 
 void co_init()
 {
-    schedule.running = CO_ID_INVALID;
-    array_init(&schedule.coroutines);
+	static int inited = 0;
+	if (!inited) {
+		schedule.running = CO_ID_INVALID;
+		array_init(&schedule.coroutines);
+		atexit(co_finish);
+	}
 }
 
 void co_finish()
@@ -105,7 +109,13 @@ int co_create(void * entry, void * args)
     co->status = CO_SUSPEND;
 
     co->ctx.rbp = (uint64_t)(co->stack + CO_STACK_SIZE);
-    co->ctx.rsp = co->ctx.rbp - 8; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte
+
+#if defined(__APPLE__)
+	// 对齐
+    co->ctx.rsp = co->ctx.rbp - 16; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte
+#else 
+    co->ctx.rsp = co->ctx.rbp - 8; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte 
+#endif
     co->ctx.rip = (uint64_t)co_bootstrap;
     co->ctx.rcx = (uint64_t)co;
     co->ctx.rdx = (uint64_t)args;
@@ -130,6 +140,7 @@ void co_resume(int id)
 
 void co_start(void * entry, void * args)
 {
+	co_init();
     co_resume(co_create(entry, args));
 }
 

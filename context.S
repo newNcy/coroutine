@@ -1,5 +1,11 @@
+
+#if defined(__APPLE__)
 .global  _swap_ctx
 _swap_ctx:
+#else
+.global  swap_ctx
+swap_ctx:
+#endif
     movq (%rsp), %rax
     movq %rsp, (%rdi)
     movq %rbp, 8(%rdi)
