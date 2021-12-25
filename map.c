@@ -205,7 +205,7 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
     }
 
     rb_node_t * y = iter;
-    rb_color_t * y_origin_color = iter->color;
+    rb_color_t y_origin_color = iter->color;
     rb_node_t * x = nullptr;
 
     if (!iter->left) {
@@ -224,13 +224,15 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
             y->right->parent = y;
         }
 
-        rb_transplant(may, iter, y);
+        rb_transplant(map, iter, y);
         y->left = iter->left;
         y->right = iter->right;
         y->color = iter->color;
     }
 
     if (y_origin_color == RB_COLOR_BLACK) {
+        while (x != map->root && x->color == RB_COLOR_BLACK) {
+        }
     }
 }
 
