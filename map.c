@@ -155,7 +155,7 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
                 if (!grandp->parent) {
                     grandp_ptr = &map->root;
                 }else {
-                    grandp == grandp->parent->left ? &grandp->parent->left : &grandp->parent->right;
+                    grandp_ptr == grandp->parent->left ? &(grandp->parent->left) : &(grandp->parent->right);
                 }
                 parent->color = RB_COLOR_BLACK;
                 grandp->color = RB_COLOR_RED;
@@ -181,18 +181,40 @@ rb_node_t * rb_minimum(rb_node_t * root)
     return root;
 }
 
+void rb_swap_color(rb_node_t * a, rb_node_t * b)
+{
+	rb_color_t c = a->color;
+	a->color = b->color;
+	b->color = c;
+}
+
+rb_node_t ** rb_place_of(rb_tree_t * t, rb_node_t * node)
+{
+	if (node == t->root) {
+		return &(t->root);
+	}
+	return node == node->parent->left? &(node->parent->left) : &(node->parent->right);
+}
+
+rb_node_t * rb_brother(rb_node_t * node) 
+{
+	if (!node || !node->parent) {
+		return nullptr;
+	}
+	return node == node->parent->left ? node->parent->right : node->parent->left;
+}
+
 void rb_transplant(rb_tree_t * tree, rb_node_t * u, rb_node_t * v)
 {
     if (tree->root == u) {
         tree->root = v;
-    }
-
-    if (u == u->parent->left) {
-        u->parent->left = v;
     } else {
-        u->parent->right = v;
-    }
-
+		if (u == u->parent->left) {
+			u->parent->left = v;
+		} else {
+			u->parent->right = v;
+		}
+	}
     if (v) {
         v->parent = u->parent;
     }
@@ -226,14 +248,60 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
 
         rb_transplant(map, iter, y);
         y->left = iter->left;
-        y->right = iter->right;
+        y->right->parent = y;
         y->color = iter->color;
     }
 
     if (y_origin_color == RB_COLOR_BLACK) {
         while (x != map->root && x->color == RB_COLOR_BLACK) {
+			int left = x == x->parent->left;
+			rb_node_t * p = x->parent;
+			rb_node_t * w = rb_brother(x);
+			rb_node_t ** parent_pos = rb_place_of(map, p);
+			if (w->color == RB_COLOR_RED) {
+				rb_swap_color(p, w);		
+				if (left) {
+					*parent_pos = rb_rotate_left(p);
+				} else {
+					*parent_pos = rb_rotate_right(p);
+				}
+				parent_pos = rb_place_of(map, p);
+				w = rb_brother(x);
+			}
+
+			if (w->color == RB_COLOR_BLACK) {
+				if (w->left->color == RB_COLOR_BLACK && w->right->color == RB_COLOR_BLACK) {
+					w->color = RB_COLOR_RED;
+					x = p;
+				} else {
+					if (left) {
+						if (w->right->color == RB_COLOR_BLACK) {
+							rb_swap_color(w, w->left);
+							p->right = rb_rotate_right(w);
+							w = p->right;
+						} 
+
+						w->color = p->color ;
+						p->color = w->right->color = RB_COLOR_BLACK;
+						*parent_pos = rb_rotate_left(p);
+					} else {
+						if (w->left->color == RB_COLOR_BLACK) {
+							rb_swap_color(w, w->right);
+							p->left= rb_rotate_left(w);
+							w = p->left;
+						}
+						
+						w->color = p->color ;
+						p->color = w->right->color = RB_COLOR_BLACK;
+						*parent_pos = rb_rotate_right(p);
+					}
+					x = map->root;
+				}
+			}
         }
+		x->color = RB_COLOR_BLACK;
     }
+	free(iter);
 }
 
 void map_erase_key(map_t * map, any_t key)
