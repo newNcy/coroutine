@@ -90,6 +90,14 @@ void map_destroy(map_t * map)
     map_init(map, nullptr, nullptr);
 }
 
+rb_node_t ** rb_place_of(rb_tree_t * t, rb_node_t * node)
+{
+	if (node == t->root) {
+		return &(t->root);
+	}
+	return node == node->parent->left? &(node->parent->left) : &(node->parent->right);
+}
+
 map_iterator_t map_set(map_t * map, any_t key, any_t value)
 {
     if (!map || !map->less || !map->equals) {
@@ -151,12 +159,7 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
                 grandp->left = rb_rotate_left(parent);
                 node = parent;
             } else {
-                rb_node_t ** grandp_ptr = nullptr;
-                if (!grandp->parent) {
-                    grandp_ptr = &map->root;
-                }else {
-                    grandp_ptr == grandp->parent->left ? &(grandp->parent->left) : &(grandp->parent->right);
-                }
+                rb_node_t ** grandp_ptr = rb_place_of(map, grandp);
                 parent->color = RB_COLOR_BLACK;
                 grandp->color = RB_COLOR_RED;
                 if (node == parent->left && uncle == grandp->right) {
@@ -186,14 +189,6 @@ void rb_swap_color(rb_node_t * a, rb_node_t * b)
 	rb_color_t c = a->color;
 	a->color = b->color;
 	b->color = c;
-}
-
-rb_node_t ** rb_place_of(rb_tree_t * t, rb_node_t * node)
-{
-	if (node == t->root) {
-		return &(t->root);
-	}
-	return node == node->parent->left? &(node->parent->left) : &(node->parent->right);
 }
 
 rb_node_t * rb_brother(rb_node_t * node) 
@@ -252,8 +247,9 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
         y->color = iter->color;
     }
 
+	/* rb-delete-fixup */
     if (y_origin_color == RB_COLOR_BLACK) {
-        while (x != map->root && x->color == RB_COLOR_BLACK) {
+        while (x != map->root && (!x || x->color == RB_COLOR_BLACK)) {
 			int left = x == x->parent->left;
 			rb_node_t * p = x->parent;
 			rb_node_t * w = rb_brother(x);
