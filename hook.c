@@ -156,6 +156,11 @@ void co_io_del(fd)
 {
     co_debug("%d remove from io set", fd);
     epoll_ctl(co_io_mgr.epoll_id, EPOLL_CTL_DEL, fd, NULL);
+    
+    map_iterator_t iter = map_find(&co_io_mgr.wait_map, fd);
+    wait_info_t * wait = map_iterator_get(iter);
+    free(wait);
+
 }
 
 int socket(int domain, int type, int protocal)

@@ -139,10 +139,17 @@ void co_resume(int id)
 
 }
 
-void co_start(void * entry, void * args)
+int co_start(void * entry, void * args)
 {
 	co_init();
-    co_resume(co_create(entry, args));
+    coroutine_t * co = co_create(entry, args);
+    co_resume(co);
+}
+
+promise_t co_await(void * entry, void * args)
+{
+    promise_t promise;
+    return promise;
 }
 
 void co_yield()

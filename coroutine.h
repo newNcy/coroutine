@@ -26,15 +26,25 @@ typedef enum
     CO_FINISH
 }co_status_t;
 
+typedef struct promise_t
+{
+    int co_id;
+    void * value;
+}promise_t;
+
 static int CO_ID_INVALID = -1;
 
 typedef void * (*coroutine_entry_t)(void *args);
 
 void co_init();
+
 int co_create(void *entry, void * args);
 void co_resume(int co);
-void co_start(void * entrry, void * args);
 void co_yield();
+
+int co_start(void * entrry, void * args);
+void co_await(void * entrry, void * args);
+
 int co_running();
 int co_count();
 void co_finish();
