@@ -40,3 +40,6 @@ void map_erase_iter(map_t * map, map_iterator_t iter);
 int map_iterator_valid(map_t * map, map_iterator_t iter);
 any_t map_iterator_get(map_iterator_t iter);
 void map_iterator_set( map_iterator_t iter, any_t value);
+
+map_iterator_t map_begin(map_t *map);
+map_iterator_t map_end(map_t *map);

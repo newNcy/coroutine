@@ -76,8 +76,6 @@ rb_node_t * rb_node_create(any_t key, any_t value)
 void map_init(map_t * map, any_compare_t less, any_compare_t equals)
 {
     map->root = nullptr;
-    map->less = nullptr;
-    map->equals = nullptr;
     map->less = less;
     map->equals = equals;
 }
@@ -225,6 +223,11 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
     rb_color_t y_origin_color = iter->color;
     rb_node_t * x = nullptr;
 
+    rb_node_t null_holder;
+    null_holder.left = nullptr;
+    null_holder.right = nullptr;
+    null_holder.color = RB_COLOR_BLACK;
+
     if (!iter->left) {
         x = iter->right;
         rb_transplant(map, iter, iter->right);
@@ -234,6 +237,10 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
     } else {
         y = rb_minimum(iter->right);
         y_origin_color = y->color;
+        if (!y->right) {
+            y->right = &null_holder; 
+            null_holder.parent = y;
+        }
         x = y->right;
         if (y->parent != iter) {
             rb_transplant(map, y, y->right);
@@ -243,13 +250,13 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
 
         rb_transplant(map, iter, y);
         y->left = iter->left;
-        y->right->parent = y;
+        y->left->parent = y;
         y->color = iter->color;
     }
 
 	/* rb-delete-fixup */
     if (y_origin_color == RB_COLOR_BLACK) {
-        while (x != map->root && (!x || x->color == RB_COLOR_BLACK)) {
+        while (x != map->root &&  x->color == RB_COLOR_BLACK) {
 			int left = x == x->parent->left;
 			rb_node_t * p = x->parent;
 			rb_node_t * w = rb_brother(x);
@@ -268,6 +275,9 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
 			if (w->color == RB_COLOR_BLACK) {
 				if (w->left->color == RB_COLOR_BLACK && w->right->color == RB_COLOR_BLACK) {
 					w->color = RB_COLOR_RED;
+                    if (x == &null_holder) {
+                        *rb_place_of(map, x) = nullptr;
+                    }
 					x = p;
 				} else {
 					if (left) {
@@ -291,6 +301,9 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
 						p->color = w->right->color = RB_COLOR_BLACK;
 						*parent_pos = rb_rotate_right(p);
 					}
+                    if (x == &null_holder) {
+                        *rb_place_of(map, x) = nullptr;
+                    }
 					x = map->root;
 				}
 			}
@@ -346,4 +359,38 @@ any_t map_iterator_get( map_iterator_t iter)
 void map_iterator_set( map_iterator_t iter, any_t value)
 {
     iter->value = value;
+}
+
+
+map_iterator_t map_begin(map_t *map)
+{
+    return rb_minimum(map->root);
+}
+
+map_iterator_t map_end(map_t *map)
+{
+    return nullptr;
+}
+
+map_iterator_t iter_next(map_iterator_t iter)
+{
+    if (!iter) {
+        return nullptr;
+    }
+    if (iter->right) {
+        map_iterator_t next = rb_minimum(iter->right);
+        if (next) {
+            return next;
+        }
+    }
+
+    if (iter->parent && iter->parent->left == iter) {
+        return iter->parent;
+    }
+
+    while (iter->parent && iter == iter->parent->right) {
+        iter = iter->parent;
+    }
+
+    return iter->parent;
 }
