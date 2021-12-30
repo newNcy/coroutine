@@ -11,8 +11,8 @@ typedef struct
     reg_t rbp;
     reg_t rip;
 
-    reg_t rcx;
-    reg_t rdx;
+    reg_t rdi;
+    reg_t rsi;
 
     //callee save
     reg_t rbx;
@@ -20,6 +20,10 @@ typedef struct
     reg_t r13;
     reg_t r14;
     reg_t r15;
+    
+    //for return value
+    reg_t rax;
+
 } context_t;
 
 struct coroutine_t;
@@ -52,8 +56,10 @@ extern uint64_t swap_ctx(context_t * cur, context_t * next);
  */
 void co_bootstrap(coroutine_t * co, void * args)
 {
-    co->entry(args);
+    void * ret = co->entry(args);
+    co_debug("return with %d", ret);
     co->status = CO_FINISH;
+    co->main.rax = ret;
     co_yield();
 }
 
@@ -118,13 +124,13 @@ int co_create(void * entry, void * args)
     co->ctx.rsp = co->ctx.rbp - 8; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte 
 #endif
     co->ctx.rip = (uint64_t)co_bootstrap;
-    co->ctx.rcx = (uint64_t)co;
-    co->ctx.rdx = (uint64_t)args;
+    co->ctx.rdi = (uint64_t)co;
+    co->ctx.rsi = (uint64_t)args;
 
     return id;
 }
 
-void co_resume(int id)
+void * co_resume(int id)
 {
     if (id >= 0 && id < schedule.coroutines.size) {
         coroutine_t * co = array_get(&schedule.coroutines, id);
@@ -133,23 +139,10 @@ void co_resume(int id)
             co_debug("resume [%d]", id);
             co->last_id = schedule.running;
             schedule.running = id;
-            swap_ctx(&co->main, &co->ctx);
+            return swap_ctx(&co->main, &co->ctx);
         }
     }
-
-}
-
-int co_start(void * entry, void * args)
-{
-	co_init();
-    coroutine_t * co = co_create(entry, args);
-    co_resume(co);
-}
-
-promise_t co_await(void * entry, void * args)
-{
-    promise_t promise;
-    return promise;
+    return 0;
 }
 
 void co_yield()
@@ -167,6 +160,30 @@ void co_yield()
         }
     }
 }
+
+int co_start(void * entry, void * args)
+{
+	co_init();
+    int co = co_create(entry, args);
+    co_resume(co);
+    return co;
+}
+
+void *co_await(int id)
+{
+    if (id >= 0 && id < schedule.coroutines.size) {
+        coroutine_t * co = array_get(&schedule.coroutines, id);
+        if (co) {
+            if (co->status == CO_FINISH) {
+                return co->main.rax;
+            } else { //do async wait then return
+                return 0;
+            }
+        }
+    }
+    return 0;
+}
+
 
 
 int co_is_all_finish()

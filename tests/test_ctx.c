@@ -6,15 +6,17 @@ void foo2()
 	printf("hello coroutine 2\n");
 }
 
-void foo()
+void * foo(int arg)
 {
-	co_start(foo2, 0);
-	printf("hello coroutine\n");
+	printf("hello coroutine with arg %d\n", arg);
+    return arg + 24;
 }
 
 
 int main(int argc, char * argv[]) 
 {
-	co_start(foo, 0);
+    int co = co_start(foo, 12);
+    printf("in main\n");
+    printf("await co %d:%d\n",co, co_await(co));
 	return 0;
 }

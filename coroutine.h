@@ -39,11 +39,11 @@ typedef void * (*coroutine_entry_t)(void *args);
 void co_init();
 
 int co_create(void *entry, void * args);
-void co_resume(int co);
+void * co_resume(int co);
 void co_yield();
 
 int co_start(void * entrry, void * args);
-void co_await(void * entrry, void * args);
+void *co_await(int id);
 
 int co_running();
 int co_count();

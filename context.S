@@ -5,7 +5,7 @@ _swap_ctx:
 .global  swap_ctx
 swap_ctx:
 #endif
-    movq (%rsp), %rax
+    movq (%rsp), %rax  //return address
     movq %rsp, (%rdi)
     movq %rbp, 8(%rdi)
     movq %rax, 16(%rdi)
@@ -26,9 +26,12 @@ swap_ctx:
     movq 56(%rsi), %r13
     movq 64(%rsi), %r14
     movq 72(%rsi), %r15
+    // put return value
+    movq 80(%rsi), %rax
 
     // pass args when enter function
     movq 24(%rsi), %rdi
     movq 32(%rsi), %rsi
+
     ret
 

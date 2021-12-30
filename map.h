@@ -23,6 +23,7 @@ typedef struct rb_node_t
 typedef struct 
 {
     rb_node_t * root;
+    size_t size;
     any_compare_t less;
     any_compare_t equals;
 }rb_tree_t;
@@ -41,5 +42,6 @@ int map_iterator_valid(map_t * map, map_iterator_t iter);
 any_t map_iterator_get(map_iterator_t iter);
 void map_iterator_set( map_iterator_t iter, any_t value);
 
+size_t map_size(map_t * map);
 map_iterator_t map_begin(map_t *map);
 map_iterator_t map_end(map_t *map);

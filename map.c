@@ -78,6 +78,7 @@ void map_init(map_t * map, any_compare_t less, any_compare_t equals)
     map->root = nullptr;
     map->less = less;
     map->equals = equals;
+    map->size = 0;
 }
 
 
@@ -106,6 +107,7 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
         rb_node_t * node = rb_node_create(key, value);
         node->color = RB_COLOR_BLACK;
         map->root = node;
+        map->size ++;
         return map->root;
     }
 
@@ -117,6 +119,7 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
 
     while (iter) {
         if (equals(key, iter->key)) {
+            iter->value = value;
             return iter;
         }
         rb_node_t ** next = nullptr;
@@ -130,6 +133,7 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
             rb_node_t * node = rb_node_create(key, value);
             *next = node;
             node->parent = iter;
+            map->size ++;
             ret = node;
             break;
         }
@@ -310,6 +314,7 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
         }
 		x->color = RB_COLOR_BLACK;
     }
+    map->size --;
 	free(iter);
 }
 
@@ -393,4 +398,9 @@ map_iterator_t iter_next(map_iterator_t iter)
     }
 
     return iter->parent;
+}
+
+size_t map_size(map_t * map)
+{
+    return map->size;
 }

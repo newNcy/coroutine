@@ -3,6 +3,7 @@
 #if !defined(__APPLE__)
 #include <sys/epoll.h>
 #endif
+#include <sys/types.h>
 #include "map.h"
 
 typedef struct
@@ -11,12 +12,16 @@ typedef struct
     int write_co;
 } wait_info_t;
 
-typedef struct co_io_mgr_t
+typedef struct aio_mgr_t
 {
     int epoll_id;
     int epoll_max;
     struct epoll_event * epoll_events;
     map_t wait_map;
-} co_io_mgr_t;
+} aio_mgr_t;
+
+void aio_init();
+void aio_update(suseconds_t timeout);
+void aio_destroy();
 
 

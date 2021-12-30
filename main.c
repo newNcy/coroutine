@@ -153,14 +153,6 @@ void async_main()
     }
 }
 
-void co_sleep(int us)
-{
-    while (1) {
-        co_info("usleep %d", us);
-        usleep(us);
-    }
-}
-
 int compare(any_t a, any_t b)
 {
     return a < b;
@@ -177,7 +169,6 @@ int main()
     co_init();
     co_event_init();
 
-    co_start(co_sleep, 1000000);
     co_start(async_main, 0);
     co_event_loop();
     printf("done\n");

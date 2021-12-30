@@ -14,8 +14,9 @@ add_library(coroutine
 	context.S
 	)
 
-add_library(coroutine_hook 
+add_library(coroutine_io 
 	hook.c
+    aio.c
 	)
 target_link_libraries(coroutine container )
 

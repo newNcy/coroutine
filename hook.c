@@ -164,38 +164,21 @@ int close(int fd)
 
 void co_event_init()
 {
-    co_io_mgr.epoll_max = 1024;
-    co_io_mgr.epoll_id = epoll_create(1);
-    co_io_mgr.epoll_events = (struct epoll_event*)malloc(co_io_mgr.epoll_max * sizeof(struct epoll_event));
-    memset(co_io_mgr.epoll_events, 0, co_io_mgr.epoll_max * sizeof(struct epoll_event));
-
+    
     heap_init(&timer_heap, timer_compare);
-    map_init(&co_io_mgr.wait_map, less, equals);
+    aio_init();
 }
 
 void co_event_loop()
 {
     while (1) {
         suseconds_t next_wake = process_timer();
-        int ready = epoll_wait(co_io_mgr.epoll_id, co_io_mgr.epoll_events, co_io_mgr.epoll_max, next_wake);
-        if (ready > 0) {
-            for (int i = 0; i < ready; ++ i) {
-                int events = co_io_mgr.epoll_events[i].events; 
-                wait_info_t * wait = (wait_info_t*)co_io_mgr.epoll_events[i].data.ptr; 
-                if (events & EPOLLIN) {
-                    co_resume(wait->read_co);
-                }
-                if (events & EPOLLOUT) {
-                    co_resume(wait->write_co);
-                }
-            }
-        }
+        aio_update(next_wake);
         if (co_is_all_finish()) {
             break;
         }
     }
     heap_destroy(&timer_heap);
-    map_destroy(&co_io_mgr.wait_map);
 }
 
 
