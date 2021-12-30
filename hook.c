@@ -6,7 +6,6 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <fcntl.h>
-#include <sys/epoll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
@@ -15,30 +14,15 @@
 #include "heap.h"
 #include "map.h"
 #include "list.h"
+#include "aio.h"
 
 typedef struct co_timer_t 
 {
     int co_id;
 	struct timeval expiration_time;
 }co_timer_t;
-
-typedef struct
-{
-    int read_co;
-    int write_co;
-} wait_info_t;
-
-typedef struct co_io_mgr_t
-{
-    int epoll_id;
-    int epoll_max;
-    struct epoll_event * epoll_events;
-    map_t wait_map;
-} co_io_mgr_t;
-
 heap_t timer_heap = {0};
 
-co_io_mgr_t co_io_mgr = {0};
 
 int timeval_less(struct timeval * lhs, struct timeval * rhs)
 {
@@ -112,57 +96,6 @@ int setnoblocking(int fd)
 }
 
 #define HOOK_FUNC( x ) static x##_func_t _##x = NULL; if (!_##x)  _##x = (x##_func_t)dlsym(RTLD_NEXT, #x)
-
-void co_io_wait(int fd, int events)
-{
-    map_iterator_t iter = map_find(&co_io_mgr.wait_map, fd);
-    wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
-    int cur = co_running();
-    if (events & EPOLLIN) {
-        wait->read_co = cur;
-        if (wait->write_co == cur) {
-            wait->write_co = CO_ID_INVALID;
-        }
-    } else if (events & EPOLLOUT) {
-        wait->write_co = cur;
-        if (wait->read_co == cur) {
-            wait->read_co = CO_ID_INVALID;
-        }
-    }
-    co_yield();
-}
-
-void co_io_add(fd)
-{
-    map_iterator_t iter = map_find(&co_io_mgr.wait_map, fd);
-    wait_info_t * wait = nullptr;
-    if (map_iterator_valid(&co_io_mgr.wait_map, iter)) {
-        wait = map_iterator_get(iter);
-    } else {
-        wait = (wait_info_t*)malloc(sizeof(wait_info_t));
-        wait->read_co = CO_ID_INVALID;
-        wait->write_co = CO_ID_INVALID;
-        map_set(&co_io_mgr.wait_map, fd, wait);
-    }
-
-    struct epoll_event event;
-    event.data.ptr = wait;
-    event.events = EPOLLIN | EPOLLOUT;
-    epoll_ctl(co_io_mgr.epoll_id, EPOLL_CTL_ADD, fd, &event);
-    co_debug("%d add to io set", fd);
-}
-
-void co_io_del(fd)
-{
-    co_debug("%d remove from io set", fd);
-    epoll_ctl(co_io_mgr.epoll_id, EPOLL_CTL_DEL, fd, NULL);
-    
-    map_iterator_t iter = map_find(&co_io_mgr.wait_map, fd);
-    wait_info_t * wait = map_iterator_get(iter);
-    free(wait);
-
-}
-
 int socket(int domain, int type, int protocal)
 {
     HOOK_FUNC(socket);
