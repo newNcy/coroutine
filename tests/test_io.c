@@ -128,7 +128,7 @@ void async_main()
     sockaddr_in bind_info; 
     bind_info.sin_family = AF_INET;
     bind_info.sin_addr.s_addr = htonl(INADDR_ANY);
-    bind_info.sin_port = htons(1224);
+    bind_info.sin_port = htons(80);
 
     int err = bind(sock, (sockaddr*)&bind_info, sizeof(bind_info));
 
@@ -142,7 +142,7 @@ void async_main()
 
     err = listen(sock, 100);
     
-    co_info("listen on %d", 1224);
+    co_info("listen on %d", 80);
     while(true) {
         sockaddr_in client;
         int len = sizeof(client);

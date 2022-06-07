@@ -181,11 +181,11 @@ void *co_await(int id)
     if (id >= 0 && id < schedule.coroutines.size) {
         coroutine_t * co = array_get(&schedule.coroutines, id);
         if (co) {
-            if (co->status == CO_FINISH) {
-                return co->main.rax;
-            } else { //do async wait then return
-                return 0;
+            while (co->status != CO_FINISH) {
+                usleep(0);
             }
+            //当协程函数跑完,返回值会被放进返回值对应的寄存器，如x86的rax
+            return co->main.rax;
         }
     }
     return 0;

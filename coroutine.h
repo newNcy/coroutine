@@ -18,6 +18,7 @@
 #endif
 
 #define main co_main
+#define async (void*)
 
 
 typedef enum 
@@ -27,13 +28,8 @@ typedef enum
     CO_FINISH
 }co_status_t;
 
-typedef struct promise_t
-{
-    int co_id;
-    void * value;
-}promise_t;
-
 static int CO_ID_INVALID = -1;
+typedef int promise_t;
 
 typedef void * (*coroutine_entry_t)(void *args);
 

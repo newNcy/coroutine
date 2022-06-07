@@ -36,7 +36,7 @@ int timer_compare(co_timer_t * lhs, co_timer_t * rhs)
 
 int usleep(useconds_t us)
 {
-    if (us <= 0) {
+    if (us < 0) {
         return 0;
     }
     co_timer_t * timer = (co_timer_t*)malloc(sizeof(co_timer_t));
