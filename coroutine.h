@@ -17,9 +17,13 @@
 #define co_info
 #endif
 
+
 #define main co_main
 #define async (void*)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum 
 {
@@ -52,4 +56,7 @@ void co_event_loop();
 
 
 
+#ifdef __cplusplus
+}
+#endif
 

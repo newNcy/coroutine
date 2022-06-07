@@ -216,7 +216,12 @@ int co_count()
 }
 
 #undef main
+#ifdef __cplusplus
+extern "C" int co_main();
+#else 
 extern int co_main();
+#endif
+
 int main(int argc, char * argv)
 {
     co_init();
