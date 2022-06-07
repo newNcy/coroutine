@@ -17,6 +17,7 @@
 #define co_info
 #endif
 
+#define main co_main
 
 
 typedef enum 

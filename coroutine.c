@@ -46,6 +46,13 @@ typedef struct
     array_t coroutines;
 } schedule_t;
 
+typedef struct
+{
+    int co_id;
+    int resolved;
+    int error;
+};
+
 
 static schedule_t schedule;
 
@@ -206,6 +213,20 @@ int co_running()
 
 int co_count()
 {
+}
+
+#undef main
+extern int co_main();
+int main(int argc, char * argv)
+{
+    co_init();
+    co_event_init();
+
+    co_start(co_main, 0);
+    co_event_loop();
+    printf("done\n");
+    co_finish();
+    return 0;
 }
 
 
