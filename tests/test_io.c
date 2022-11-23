@@ -1,12 +1,8 @@
 #include <stdio.h>
 #include "coroutine.h"
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdlib.h>
-
-#include "heap.h"
-#include "map.h"
 
 typedef struct sockaddr_in sockaddr_in;
 typedef struct sockaddr sockaddr;
@@ -153,25 +149,8 @@ void async_main()
     }
 }
 
-int compare(any_t a, any_t b)
-{
-    return a < b;
-}
-
-int compare_e(any_t a, any_t b)
-{
-    return a == b;
-}
-
 int main()
 {
-
-    co_init();
-    co_event_init();
-
-    co_start(async_main, 0);
-    co_event_loop();
-    printf("done\n");
-    co_finish();
+    co_main(async_main, 0);
     return 0;
 }

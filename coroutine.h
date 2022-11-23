@@ -2,25 +2,12 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#define CO_STACK_SIZE 1024 * 128
-#define true 1
-
-#ifdef LOG_DEBUG
-#define co_debug(fmt,...) printf("[debug] [%d] "fmt"\n", co_running(),  ##__VA_ARGS__)
-#else
-#define co_debug
-#endif
-
-#ifdef LOG_INFO
-#define co_info(fmt,...) printf("[info] [%d] "fmt"\n", co_running(),  ##__VA_ARGS__)
-#else
-#define co_info
-#endif
-
-
-#define main co_main
-#define async (void*)
-
+#include "hook.h"
+#include "aio.h"
+#include "array.h"
+#include "heap.h"
+#include "timer.h"
+#include "macros.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -32,10 +19,61 @@ typedef enum
     CO_FINISH
 }co_status_t;
 
+typedef uint64_t reg_t;
+
+typedef struct 
+{
+    reg_t rsp;
+    reg_t rbp;
+    reg_t rip;
+
+    reg_t rdi;
+    reg_t rsi;
+
+    //callee save
+    reg_t rbx;
+    reg_t r12;
+    reg_t r13;
+    reg_t r14;
+    reg_t r15;
+    
+    //for return value
+    reg_t rax;
+
+} context_t;
+
+struct coroutine_t;
+
+typedef void * (*coroutine_entry_t)(void *args);
+typedef struct coroutine_t
+{
+    context_t ctx;
+    context_t main;
+    coroutine_entry_t entry;
+    co_status_t status;
+
+    char * stack;
+    int last_id;
+}coroutine_t;
+
+
+typedef struct 
+{
+    int running;
+    array_t coroutines;
+} schedule_t;
+
+typedef struct 
+{
+    schedule_t schedule;
+    heap_t timer_mgr;
+    aio_mgr_t io_mgr;
+    int inited;
+}env_t;
+
 static int CO_ID_INVALID = -1;
 typedef int promise_t;
 
-typedef void * (*coroutine_entry_t)(void *args);
 
 void co_init();
 
@@ -51,10 +89,8 @@ int co_count();
 void co_finish();
 int co_is_all_finish();
 
-void co_event_init();
-void co_event_loop();
-
-
+env_t * thread_env();
+void * co_main(void * entry, void * args);
 
 #ifdef __cplusplus
 }

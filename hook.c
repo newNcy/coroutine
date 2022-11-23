@@ -1,7 +1,6 @@
 #define _GNU_SOURCE
 #include "coroutine.h"
 
-#include <sys/time.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dlfcn.h>
@@ -11,70 +10,6 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "heap.h"
-#include "map.h"
-#include "list.h"
-#include "aio.h"
-
-typedef struct co_timer_t 
-{
-    int co_id;
-	struct timeval expiration_time;
-}co_timer_t;
-heap_t timer_heap = {0};
-
-
-int timeval_less(struct timeval * lhs, struct timeval * rhs)
-{
-    return lhs->tv_sec < rhs->tv_sec || lhs->tv_sec == rhs->tv_sec && lhs->tv_usec < rhs->tv_usec;
-}
-
-int timer_compare(co_timer_t * lhs, co_timer_t * rhs)
-{
-    return timeval_less(&lhs->expiration_time, &rhs->expiration_time);
-}
-
-int usleep(useconds_t us)
-{
-    if (us < 0) {
-        return 0;
-    }
-    co_timer_t * timer = (co_timer_t*)malloc(sizeof(co_timer_t));
-    timer->co_id = co_running();
-    gettimeofday(&timer->expiration_time, NULL);
-    timer->expiration_time.tv_sec += us/1000000;
-    timer->expiration_time.tv_usec += us%1000000;
-    heap_push(&timer_heap, timer);
-    co_yield();
-    return 1;
-}
-
-unsigned int sleep(unsigned int s)
-{
-    return usleep(s * 1000 * 1000);
-}
-
-suseconds_t process_timer()
-{
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    while (!heap_empty(&timer_heap)) {
-        co_timer_t * timer = (co_timer_t*)heap_top(&timer_heap);
-        if (timeval_less(&now, &timer->expiration_time)) {
-            return (timer->expiration_time.tv_sec - now.tv_sec) * 1000 + (timer->expiration_time.tv_usec - now.tv_usec)/1000;
-        } else {
-            int id = timer->co_id;
-            free(timer);
-            heap_pop(&timer_heap);
-
-            co_resume(id);
-        }
-    }
-    return -1;
-}
-
-
-
 /////////////hook///////////////
 
 typedef int (*socket_func_t)(int domain, int type, int protocol);
@@ -83,6 +18,13 @@ typedef int (*connect_func_t)(int fd, const struct sockaddr *addr, socklen_t len
 typedef int (*recv_func_t)(int fd, void * buf, size_t len, int flags);
 typedef int (*send_func_t)(int fd, void * buf, size_t len, int flags);
 typedef int (*close_func_t)(int fd);
+
+static socket_func_t _socket = NULL;
+static accept_func_t _accept = NULL;
+static connect_func_t _connect = NULL;
+static recv_func_t _recv = NULL;
+static send_func_t _send = NULL;
+static close_func_t _close = NULL;
 
 //todo open read write ...
 
@@ -95,10 +37,9 @@ int setnoblocking(int fd)
 	return old_option;
 }
 
-#define HOOK_FUNC( x ) static x##_func_t _##x = NULL; if (!_##x)  _##x = (x##_func_t)dlsym(RTLD_NEXT, #x)
+#define HOOK_FUNC( x ) if (!_##x) _##x = (x##_func_t)dlsym(RTLD_NEXT, #x)
 int socket(int domain, int type, int protocal)
 {
-    HOOK_FUNC(socket);
     int sock = _socket(domain, type, protocal); 
 	setnoblocking(sock);
     co_io_add(sock);
@@ -107,7 +48,6 @@ int socket(int domain, int type, int protocal)
 
 int accept(int fd, struct sockaddr * addr, socklen_t * len)
 {
-    HOOK_FUNC(accept);
     co_debug("async accept");
     co_io_wait(fd, EPOLLIN);
     int sock = _accept(fd, addr, len);
@@ -118,7 +58,6 @@ int accept(int fd, struct sockaddr * addr, socklen_t * len)
 
 int connect(int fd, const struct sockaddr * addr, socklen_t len)
 {
-	HOOK_FUNC(connect);
 	int ret = _connect(fd, addr, len);
 	if (ret == 0) {
 		co_io_add(fd);
@@ -138,7 +77,6 @@ int connect(int fd, const struct sockaddr * addr, socklen_t len)
 
 ssize_t recv(int fd, void * buff, size_t len, int flags) 
 {
-    HOOK_FUNC(recv);
     co_debug("async recv");
     co_io_wait(fd, EPOLLIN);
     co_debug("async recv finish");
@@ -147,7 +85,6 @@ ssize_t recv(int fd, void * buff, size_t len, int flags)
 
 ssize_t send(int fd, const void * buff, size_t len, int flags)
 {
-    HOOK_FUNC(send);
     co_debug("async send");
     co_io_wait(fd, EPOLLOUT);
     co_debug("async send finish");
@@ -156,29 +93,18 @@ ssize_t send(int fd, const void * buff, size_t len, int flags)
 
 int close(int fd)
 {
-    HOOK_FUNC(close);
     co_io_del(fd);
     return _close(fd);
 }
 
-
-void co_event_init()
+void hook_sys_call()
 {
-    
-    heap_init(&timer_heap, timer_compare);
-    aio_init();
-}
-
-void co_event_loop()
-{
-    while (1) {
-        suseconds_t next_wake = process_timer();
-        aio_update(next_wake);
-        if (co_is_all_finish()) {
-            break;
-        }
-    }
-    heap_destroy(&timer_heap);
+    HOOK_FUNC(socket);
+    HOOK_FUNC(accept);
+	HOOK_FUNC(connect);
+    HOOK_FUNC(recv);
+    HOOK_FUNC(send);
+    HOOK_FUNC(close);
 }
 
 
