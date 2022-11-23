@@ -1,9 +1,10 @@
 #include "coroutine.h"
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "array.h"
 #include "heap.h"
-static thread_local env_t env;
+thread_local env_t env;
 
 env_t * thread_env()
 {
@@ -30,6 +31,8 @@ void co_init()
 	if (!env->inited) {
 		thread_env()->schedule.running = CO_ID_INVALID;
 		array_init(&thread_env()->schedule.coroutines);
+        co_event_init();
+        hook_sys_call();
         env->inited = 1;
 	}
 }
@@ -123,7 +126,7 @@ void co_yield()
 
 int co_start(void * entry, void * args)
 {
-	co_init();
+    assert(thread_env()->inited && "co env need to be inited first");
     int co = co_create(entry, args);
     co_resume(co);
     return co;
@@ -167,8 +170,6 @@ int co_running()
 void * co_main(void * entry, void * args)
 {
     co_init();
-    co_event_init();
-    hook_sys_call();
     co_start(entry, args);
     co_event_loop();
     co_finish();
