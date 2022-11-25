@@ -124,23 +124,27 @@ void co_yield()
     }
 }
 
-int co_start(void * entry, void * args)
+awaitable_t co_start(void * entry, void * args)
 {
     assert(thread_env()->inited && "co env need to be inited first");
     int co = co_create(entry, args);
     co_resume(co);
-    return co;
+    awaitable_t ret;
+    ret.co_id = co;
+    ret.env = thread_env();
+    return ret;
 }
 
-void *co_await(int id)
+void *co_await(awaitable_t awaitable)
 {
+    assert (awaitable.env == thread_env());
+    int id = awaitable.co_id;
     if (id >= 0 && id < thread_env()->schedule.coroutines.size) {
         coroutine_t * co = array_get(&thread_env()->schedule.coroutines, id);
         if (co) {
             while (co->status != CO_FINISH) {
                 usleep(0);
             }
-            //当协程函数跑完,返回值会被放进返回值对应的寄存器，如x86的rax
             return co->main.rax;
         }
     }

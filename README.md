@@ -8,24 +8,21 @@
  * 两次创建协程，第一个等待协程执行完毕获取返回值
  * 第二次不等待直接往下执行
  */
-
 #include "coroutine.h"
+
 
 int co_func()
 {
-    printf("%s sleep 1s\n", __PRETTY_FUNCTION__);
+    printf("sleep 1s\n");
     sleep(1);
-    printf("%s\n", __PRETTY_FUNCTION__);
+    printf("sleep end\n");
     return 24;
 }
 
 int main()
 {
-    int ret =co_await(co_start(async co_func, 0));
-    printf("%s %d\n", __PRETTY_FUNCTION__, ret);
-
-    co_start(async co_func, 0);
-    printf("%s\n", __PRETTY_FUNCTION__);
-
+    printf("main\n");
+    co_main(co_func, 0);
+    printf("main\n");
 }
 ```

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8)
 project(coroutine)
 
 enable_language(C ASM)
-set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-g -fno-strict-aliasing -Wall -export-dynamic -Wall -pipe  -D_GNU_SOURCE -D_REENTRANT -fPIC -Wno-deprecated -m64 -DLOG_DEBUG -DLOG_INFO")
+set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-g -fno-strict-aliasing -Wall -export-dynamic -Wall -pipe  -D_GNU_SOURCE -D_REENTRANT -fPIC -Wno-deprecated -m64")
 
 add_library(container
         container/array.c

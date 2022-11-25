@@ -15,8 +15,8 @@ void * foo(int arg)
 
 int main(int argc, char * argv[]) 
 {
-    int co = co_start(foo, 12);
+    awaitable_t co = co_start(foo, 12);
     printf("in main\n");
-    printf("await co %d:%d\n",co, co_await(co));
+    printf("await co %d:%d\n",co.co_id, co_await(co));
 	return 0;
 }

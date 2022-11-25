@@ -11,6 +11,14 @@ void heap_destroy(heap_t * heap)
     array_destroy(&heap->array);
 }
 
+void print_heap(heap_t * heap)
+{
+    for (int i = 0; i  < heap->array.size; ++ i) {
+        printf("%d ", array_get(&heap->array, i));
+    }
+    printf("\n");
+}
+
 int heap_push(heap_t * heap, any_t any)
 {
     if (!array_push_back(&heap->array, any)) {
@@ -57,7 +65,7 @@ void heap_pop(heap_t * heap)
         }
         any_t child_val = array_get(&heap->array, child);
         if ( child + 1 <= last) {
-            any_t rigth_val = array_get(&heap->array, child);
+            any_t rigth_val = array_get(&heap->array, child + 1);
             if (heap->compare(rigth_val, child_val)) {
                 child ++;
                 child_val = rigth_val;

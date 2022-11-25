@@ -1,7 +1,7 @@
 #include "aio.h"
 #include "coroutine.h"
 
-void aio_init()
+void io_init()
 {
     thread_env()->io_mgr.epoll_max = 1024;
     thread_env()->io_mgr.epoll_id = epoll_create(1);
@@ -9,12 +9,12 @@ void aio_init()
     memset(thread_env()->io_mgr.epoll_events, 0, thread_env()->io_mgr.epoll_max * sizeof(struct epoll_event));
     map_init(&thread_env()->io_mgr.wait_map, less, equals);
 }
-void aio_destroy()
+void io_destroy()
 {
     map_destroy(&thread_env()->io_mgr.wait_map);
 }
 
-void aio_update(suseconds_t timeout)
+void io_update(suseconds_t timeout)
 {
     if (!map_size(&thread_env()->io_mgr.wait_map)) {
         return;
@@ -34,7 +34,7 @@ void aio_update(suseconds_t timeout)
     }
 }
 
-void co_io_wait(int fd, int events)
+void io_wait(int fd, int events)
 {
     map_iterator_t iter = map_find(&thread_env()->io_mgr.wait_map, fd);
     wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
@@ -53,7 +53,7 @@ void co_io_wait(int fd, int events)
     co_yield();
 }
 
-void co_io_add(fd)
+void io_add(fd)
 {
     map_iterator_t iter = map_find(&thread_env()->io_mgr.wait_map, fd);
     wait_info_t * wait = nullptr;
@@ -73,7 +73,7 @@ void co_io_add(fd)
     co_debug("%d add to io set", fd);
 }
 
-void co_io_del(fd)
+void io_del(fd)
 {
     co_debug("%d remove from io set", fd);
     epoll_ctl(thread_env()->io_mgr.epoll_id, EPOLL_CTL_DEL, fd, NULL);

@@ -59,14 +59,14 @@ suseconds_t process_timer()
 void co_event_init()
 {
     heap_init(&thread_env()->timer_mgr, timer_compare);
-    aio_init();
+    io_init();
 }
 
 void co_event_loop()
 {
     while (1) {
         suseconds_t next_wake = process_timer();
-        aio_update(next_wake);
+        io_update(next_wake);
         if (co_is_all_finish()) {
             break;
         }

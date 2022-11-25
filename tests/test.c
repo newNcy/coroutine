@@ -1,17 +1,22 @@
 #include "coroutine.h"
 
 
-int co_func()
+void sleep_for_sec(int sec)
 {
-    printf("sleep 1s\n");
-    sleep(1);
-    printf("sleep end\n");
-    return 24;
+    sleep(sec);
+    printf("%d wake up after %d seconds\n", co_running(), sec);
+}
+
+void start()
+{
+    for (int i = 1; i <= 10; ++ i) {
+        co_start(sleep_for_sec, i);
+    }
 }
 
 int main()
 {
     printf("main\n");
-    co_main(co_func, 0);
+    co_main(start, 0);
     printf("main\n");
 }

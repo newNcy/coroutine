@@ -12,6 +12,7 @@ typedef struct
     char method[10];
     char uri[256];
     char version[10];
+    int conn;
 }http_request_t;
 
 int take_util(char * stream, int stream_len, int * pos, char * to, int to_len, char stop)
@@ -67,13 +68,33 @@ int parse_http_request(char * buff, int len, http_request_t * request)
     byte_took ++;
 
 
-    co_info("|%s|%s|%s|", request->method, request->uri, request->version);
+    printf("|%s|%s|%s|\n", request->method, request->uri, request->version);
 
     char header[256];
     while (take_header(buff, len, &byte_took, header, 255)) {
-        co_info("%s", header);
+        printf("%s\n", header);
     }
     return 1;
+}
+
+void on_http_request(http_request_t * req)
+{
+    char *content = 
+        "<html>"
+        "<head><title>hello coroutine</title></head>"
+        "<body><h1>hello coroutine</h1></body>"
+        "</html>";
+    char * json = "{\"a\" : 1}";
+    char * template = 
+        "HTTP/1.1 200 OK\r\n"
+        "content-type: text/html\r\n"
+        "content-length: %d\r\n"
+        "\r\n"
+        "%s";
+
+    char response_buff[1024] = {0};
+    sprintf(response_buff, template, strlen(content), content);
+    send(req->conn, response_buff, strlen(response_buff), 0);
 }
 
 void async_handle_connection(int conn)
@@ -83,6 +104,7 @@ void async_handle_connection(int conn)
     while(true) {
         int rc = recv(conn, buff + used, 1024 - used, 0);
         if (rc == 0) {
+            printf("connection[%d] closed\n", conn);
             break;
         }
 
@@ -90,22 +112,8 @@ void async_handle_connection(int conn)
         if (strstr(buff + used - rc, "\r\n\r\n")) {
             http_request_t request;
             if (parse_http_request(buff, used, &request)) {
-                char *content = 
-                    "<html>"
-                    "<head><title>hello coroutine</title></head>"
-                    "<body><h1>hello coroutine</h1></body>"
-                    "</html>";
-                char * json = "{\"a\" : 1}";
-                char * template = 
-                    "HTTP/1.1 200 OK\r\n"
-                    "content-type: application/json; charset=utf-8\r\n"
-                    "content-length: %d\r\n"
-                    "\r\n"
-                    "%s";
-
-                char response_buff[1024] = {0};
-                sprintf(response_buff, template, strlen(json), json);
-                send(conn, response_buff, strlen(response_buff), 0);
+                request.conn = conn;
+                co_start(on_http_request, &request); 
                 used = 0;
             }
         }
@@ -138,7 +146,7 @@ void async_main()
 
     err = listen(sock, 100);
     
-    co_info("listen on %d", 80);
+    printf("listen on %d\n", 80);
     while(true) {
         sockaddr_in client;
         int len = sizeof(client);

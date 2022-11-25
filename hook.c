@@ -42,17 +42,17 @@ int socket(int domain, int type, int protocal)
 {
     int sock = _socket(domain, type, protocal); 
 	setnoblocking(sock);
-    co_io_add(sock);
+    io_add(sock);
     return sock;
 }
 
 int accept(int fd, struct sockaddr * addr, socklen_t * len)
 {
     co_debug("async accept");
-    co_io_wait(fd, EPOLLIN);
+    io_wait(fd, EPOLLIN);
     int sock = _accept(fd, addr, len);
     co_debug("async accept finish");
-    co_io_add(sock);
+    io_add(sock);
     return sock;
 }
 
@@ -60,12 +60,12 @@ int connect(int fd, const struct sockaddr * addr, socklen_t len)
 {
 	int ret = _connect(fd, addr, len);
 	if (ret == 0) {
-		co_io_add(fd);
+		io_add(fd);
 		return ret;
 	} else if (errno !=  EINPROGRESS) {
 		return ret;
 	}
-	co_io_wait(fd, EPOLLOUT);
+	io_wait(fd, EPOLLOUT);
 	int error = 0;
 	len = sizeof(error);
 	if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0 || error != 0)  {
@@ -78,7 +78,7 @@ int connect(int fd, const struct sockaddr * addr, socklen_t len)
 ssize_t recv(int fd, void * buff, size_t len, int flags) 
 {
     co_debug("async recv");
-    co_io_wait(fd, EPOLLIN);
+    io_wait(fd, EPOLLIN);
     co_debug("async recv finish");
     return _recv(fd, buff, len, flags);
 }
@@ -86,14 +86,14 @@ ssize_t recv(int fd, void * buff, size_t len, int flags)
 ssize_t send(int fd, const void * buff, size_t len, int flags)
 {
     co_debug("async send");
-    co_io_wait(fd, EPOLLOUT);
+    io_wait(fd, EPOLLOUT);
     co_debug("async send finish");
     return _send(fd, buff, len, flags);
 }
 
 int close(int fd)
 {
-    co_io_del(fd);
+    io_del(fd);
     return _close(fd);
 }
 

@@ -67,12 +67,16 @@ typedef struct
 {
     schedule_t schedule;
     heap_t timer_mgr;
-    aio_mgr_t io_mgr;
+    io_mgr_t io_mgr;
     int inited;
 }env_t;
 
 static int CO_ID_INVALID = -1;
-typedef int promise_t;
+typedef struct 
+{
+    int co_id;
+    env_t * env;
+}awaitable_t;
 
 
 void co_init();
@@ -81,8 +85,8 @@ int co_create(void *entry, void * args);
 void * co_resume(int co);
 void co_yield();
 
-int co_start(void * entrry, void * args);
-void *co_await(int id);
+awaitable_t co_start(void * entrry, void * args);
+void *co_await(awaitable_t awaitable);
 
 int co_running();
 int co_count();
