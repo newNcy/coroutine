@@ -1,8 +1,13 @@
 #include <stdio.h>
 #include "coroutine.h"
+#ifdef WIN32
+#include <winsock2.h>
+#else
 #include <arpa/inet.h>
+#endif
 #include <string.h>
 #include <stdlib.h>
+
 
 typedef struct sockaddr_in sockaddr_in;
 typedef struct sockaddr sockaddr;
@@ -94,7 +99,7 @@ void on_http_request(http_request_t * req)
 
     char response_buff[1024] = {0};
     sprintf(response_buff, template, strlen(content), content);
-    send(req->conn, response_buff, strlen(response_buff), 0);
+    asend(req->conn, response_buff, strlen(response_buff), 0);
 }
 
 void async_handle_connection(int conn)
@@ -102,7 +107,7 @@ void async_handle_connection(int conn)
     char buff[1024] = {0};
     int used = 0;
     while(true) {
-        int rc = recv(conn, buff + used, 1024 - used, 0);
+        int rc = arecv(conn, buff + used, 1024 - used, 0);
         if (rc == 0) {
             printf("connection[%d] closed\n", conn);
             break;
@@ -121,13 +126,31 @@ void async_handle_connection(int conn)
             break;
         }
     }
-    close(conn);
+    aclose(conn);
 }
 
+void heartbeat()
+{
+    while (true) {
+        printf("loop...\n");
+        sleep(1);
+    }
+}
 
 void async_main()
 {
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    //co_start(heartbeat, 0);
+#ifdef WIN32
+    WORD word = MAKEWORD(2, 2);
+    WSADATA wdata;
+    int serr = WSAStartup(word, &wdata);
+    if (serr != 0) {
+        return -1;
+    }
+#endif
+
+    int sock = asocket(AF_INET, SOCK_STREAM, 0);
 
     sockaddr_in bind_info; 
     bind_info.sin_family = AF_INET;
@@ -140,7 +163,7 @@ void async_main()
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &dummy, sizeof(dummy));
     if (err) {
         printf("bind failed\n");
-        close(sock);
+        aclose(sock);
         return;
     }
 
@@ -150,12 +173,13 @@ void async_main()
     while(true) {
         sockaddr_in client;
         int len = sizeof(client);
-        int conn = accept(sock, (sockaddr *)&client, &len);
+        int conn = aaccept(sock, (sockaddr *)&client, &len);
         unsigned char * ip = (char*)&client.sin_addr.s_addr;
         printf("[%d.%d.%d.%d:%d]\n", ip[0], ip[1], ip[2], ip[3], htons(client.sin_port));
         co_start(async_handle_connection, conn);
     }
 }
+
 
 int main()
 {

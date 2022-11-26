@@ -28,23 +28,32 @@ void array_set(array_t * array, int index, any_t any)
     array->data[index] = any;
 }
 
+void array_reserve(array_t * array, size_t size)
+{
+    any_t * data = (any_t*)malloc(size * sizeof(any_t));
+    if (data) {
+        if (array->size) {
+            memcpy(data, array->data, array->size * sizeof(any_t));
+            free(array->data);
+        }
+        array->data = data;
+        array->capacity = size;
+    }
+}
+void array_resize(array_t * array, size_t size)
+{
+    if (size >  array->capacity) {
+        array_reserve(array, size);
+    }
+    if (array->capacity >= size) {
+        array->size = size;
+    }
+}
+
 int array_push_back(array_t * array, any_t any)
 {
     if (array->size == array->capacity) {
-        if (array->capacity == 0) {
-            int cap = 10;
-            array->data = (any_t*)malloc(cap * sizeof(any_t));
-            if (array->data) {
-                array->capacity = 10;
-            }
-        } else {
-            int cap = 2 * array->capacity;
-            any_t * new_data = (any_t*)realloc(array->data, cap * sizeof(any_t));
-            if (new_data) {
-                array->capacity = cap;
-                array->data = new_data;
-            }
-        }
+        array_reserve(array, array->capacity ? array->capacity * 2:10);
     }
 
     if (array->size < array->capacity) {

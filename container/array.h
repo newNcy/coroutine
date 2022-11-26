@@ -19,3 +19,5 @@ int array_push_back(array_t * array, any_t any);
 int array_insert(array_t * array, int index, any_t any);
 int array_erase(array_t * array, int index);
 void array_destroy(array_t * array);
+void array_resize(array_t * array, size_t size);
+void array_reserve(array_t * array, size_t size);

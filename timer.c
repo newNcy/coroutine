@@ -15,6 +15,10 @@ int timer_compare(co_timer_t * lhs, co_timer_t * rhs)
 {
     return timeval_less(&lhs->expiration_time, &rhs->expiration_time);
 }
+void timer_mgr_init(heap_t * heap)
+{
+    heap_init(heap, timer_compare);
+}
 
 int usleep(useconds_t us)
 {
@@ -36,7 +40,7 @@ unsigned int sleep(unsigned int s)
     return usleep(s * 1000 * 1000);
 }
 
-suseconds_t process_timer()
+long long process_timer()
 {
     struct timeval now;
     gettimeofday(&now, NULL);
@@ -55,24 +59,6 @@ suseconds_t process_timer()
     return -1;
 }
 
-
-void co_event_init()
-{
-    heap_init(&thread_env()->timer_mgr, timer_compare);
-    io_init();
-}
-
-void co_event_loop()
-{
-    while (1) {
-        suseconds_t next_wake = process_timer();
-        io_update(next_wake);
-        if (co_is_all_finish()) {
-            break;
-        }
-    }
-    heap_destroy(&thread_env()->timer_mgr);
-}
 
 
 

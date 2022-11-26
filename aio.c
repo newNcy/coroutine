@@ -1,33 +1,53 @@
 #include "aio.h"
 #include "coroutine.h"
+#ifdef WIN32
+#include <winsock.h>
+#endif
 
 void io_init()
 {
-    thread_env()->io_mgr.epoll_max = 1024;
-    thread_env()->io_mgr.epoll_id = epoll_create(1);
-    thread_env()->io_mgr.epoll_events = (struct epoll_event*)malloc(thread_env()->io_mgr.epoll_max * sizeof(struct epoll_event));
-    memset(thread_env()->io_mgr.epoll_events, 0, thread_env()->io_mgr.epoll_max * sizeof(struct epoll_event));
+    env_t * env = thread_env();
+    event_init(&env->io_mgr);
     map_init(&thread_env()->io_mgr.wait_map, less, equals);
 }
 void io_destroy()
 {
+    event_destroy(&thread_env()->io_mgr);
     map_destroy(&thread_env()->io_mgr.wait_map);
 }
 
-void io_update(suseconds_t timeout)
+any_t encode_event(int fd, int events) 
+{ 
+    return fd << 3 | events;
+}
+
+void decode_event(any_t event, int * fd, int * events) 
+{ 
+    *fd = (long long )event>>3; 
+    *events = (long long)event & 0x7; 
+}
+
+void io_update(long long timeout)
 {
     if (!map_size(&thread_env()->io_mgr.wait_map)) {
         return;
     }
-    int ready = epoll_wait(thread_env()->io_mgr.epoll_id, thread_env()->io_mgr.epoll_events, thread_env()->io_mgr.epoll_max, timeout);
-    if (ready > 0) {
-        for (int i = 0; i < ready; ++ i) {
-            int events = thread_env()->io_mgr.epoll_events[i].events; 
-            wait_info_t * wait = (wait_info_t*)thread_env()->io_mgr.epoll_events[i].data.ptr; 
-            if (events & EPOLLIN) {
+
+    io_mgr_t * io_mgr = &thread_env()->io_mgr;
+
+    int num_events = event_wait(io_mgr);
+    for (int i = 0; i < num_events; ++ i) {
+        int fd = 0;
+        int events = 0;
+        any_t e = array_get(&io_mgr->fired_events, i);
+        decode_event(e, &fd, &events);
+        map_iterator_t iter = map_find(&io_mgr->wait_map, fd);
+        if (map_iterator_valid(&io_mgr->wait_map, iter)) {
+            wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
+            if (events & IO_READ) {
                 co_resume(wait->read_co);
             }
-            if (events & EPOLLOUT) {
+            if (events & IO_WRITE) {
                 co_resume(wait->write_co);
             }
         }
@@ -39,12 +59,12 @@ void io_wait(int fd, int events)
     map_iterator_t iter = map_find(&thread_env()->io_mgr.wait_map, fd);
     wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
     int cur = co_running();
-    if (events & EPOLLIN) {
+    if (events & IO_READ) {
         wait->read_co = cur;
         if (wait->write_co == cur) {
             wait->write_co = CO_ID_INVALID;
         }
-    } else if (events & EPOLLOUT) {
+    } else if (events & IO_WRITE) {
         wait->write_co = cur;
         if (wait->read_co == cur) {
             wait->read_co = CO_ID_INVALID;
@@ -52,6 +72,21 @@ void io_wait(int fd, int events)
     }
     co_yield();
 }
+
+int io_setnoblocking(int fd)
+{
+#ifdef WIN32
+    int mode = 1;
+    ioctlsocket(fd, FIONBIO, &mode);
+#else
+	int old_option = fcntl(fd, F_GETFL);
+	int new_option = old_option | O_NONBLOCK;
+	fcntl(fd, F_SETFL, new_option);
+	return old_option;
+
+#endif
+}
+
 
 void io_add(fd)
 {
@@ -65,23 +100,20 @@ void io_add(fd)
         wait->write_co = CO_ID_INVALID;
         map_set(&thread_env()->io_mgr.wait_map, fd, wait);
     }
-
-    struct epoll_event event;
-    event.data.ptr = wait;
-    event.events = EPOLLIN | EPOLLOUT;
-    epoll_ctl(thread_env()->io_mgr.epoll_id, EPOLL_CTL_ADD, fd, &event);
+    event_add(&thread_env()->io_mgr, fd);
     co_debug("%d add to io set", fd);
 }
 
 void io_del(fd)
 {
     co_debug("%d remove from io set", fd);
-    epoll_ctl(thread_env()->io_mgr.epoll_id, EPOLL_CTL_DEL, fd, NULL);
-    
+    event_del(&thread_env()->io_mgr, fd);
     map_iterator_t iter = map_find(&thread_env()->io_mgr.wait_map, fd);
-    wait_info_t * wait = map_iterator_get(iter);
-    free(wait);
-    map_erase_iter(&thread_env()->io_mgr.wait_map, iter);
+    if (map_iterator_valid(&thread_env()->io_mgr.wait_map, iter)) {
+        wait_info_t * wait = map_iterator_get(iter);
+        free(wait);
+        map_erase_iter(&thread_env()->io_mgr.wait_map, iter);
+    }
 }
 
 

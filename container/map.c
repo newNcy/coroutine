@@ -223,6 +223,12 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
         return;
     }
 
+    if (iter == map->root) {
+        map->root = nullptr;
+        free(iter);
+        return;
+    }
+
     rb_node_t * y = iter;
     rb_color_t y_origin_color = iter->color;
     rb_node_t * x = nullptr;
@@ -365,7 +371,6 @@ void map_iterator_set( map_iterator_t iter, any_t value)
 {
     iter->value = value;
 }
-
 
 map_iterator_t map_begin(map_t *map)
 {

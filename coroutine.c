@@ -84,11 +84,16 @@ int co_create(void * entry, void * args)
 	// 对齐
     co->ctx.rsp = co->ctx.rbp - 16; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte
 #else 
-    co->ctx.rsp = co->ctx.rbp - 8; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte 
+    co->ctx.rsp = co->ctx.rbp; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte 
 #endif
     co->ctx.rip = (uint64_t)co_wrap;
+#ifdef WIN32
+    co->ctx.rcx = (uint64_t)co;
+    co->ctx.rdx = (uint64_t)args;
+#else
     co->ctx.rdi = (uint64_t)co;
     co->ctx.rsi = (uint64_t)args;
+#endif
 
     return id;
 }
@@ -170,6 +175,25 @@ int co_running()
 {
     return thread_env()->schedule.running;
 }
+
+void co_event_init()
+{
+    timer_mgr_init(&thread_env()->timer_mgr);
+    io_init();
+}
+
+void co_event_loop()
+{
+    while (1) {
+        long long next_wake = process_timer();
+        io_update(next_wake);
+        if (co_is_all_finish()) {
+            break;
+        }
+    }
+    heap_destroy(&thread_env()->timer_mgr);
+}
+
 
 void * co_main(void * entry, void * args)
 {

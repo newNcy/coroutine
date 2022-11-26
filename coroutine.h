@@ -27,8 +27,11 @@ typedef struct
     reg_t rbp;
     reg_t rip;
 
+    //for int arguments
     reg_t rdi;
     reg_t rsi;
+    reg_t rcx;
+    reg_t rdx;
 
     //callee save
     reg_t rbx;
@@ -93,6 +96,8 @@ int co_count();
 void co_finish();
 int co_is_all_finish();
 
+void co_event_init();
+void co_event_loop();
 env_t * thread_env();
 void * co_main(void * entry, void * args);
 
