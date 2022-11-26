@@ -7,6 +7,7 @@
 #include <windows.h>
 //#include <ws2tcpip.h>
 #else
+#include <sys/socket.h>
 #include <dlfcn.h>
 #endif
 #include <fcntl.h>

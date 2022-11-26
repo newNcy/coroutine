@@ -2,6 +2,8 @@
 #include "coroutine.h"
 #ifdef WIN32
 #include <winsock.h>
+#else 
+#include <fcntl.h>
 #endif
 
 void io_init()

@@ -140,7 +140,7 @@ void heartbeat()
 void async_main()
 {
 
-    //co_start(heartbeat, 0);
+    co_start(heartbeat, 0);
 #ifdef WIN32
     WORD word = MAKEWORD(2, 2);
     WSADATA wdata;
