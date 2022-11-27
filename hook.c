@@ -1,19 +1,20 @@
-#define _GNU_SOURCE
 #include "coroutine.h"
 
 #include <stdlib.h>
 #include <string.h>
+#include "macros.h"
 #ifdef WIN32
-#include <windows.h>
+#include <winsock2.h>
 //#include <ws2tcpip.h>
 #else
 #include <sys/socket.h>
 #include <dlfcn.h>
+#include <unistd.h>
 #endif
 #include <fcntl.h>
 #include <sys/types.h>
 #include <errno.h>
-#include <unistd.h>
+
 
 typedef unsigned socklen_t;
 /////////////hook///////////////
@@ -74,7 +75,7 @@ int aconnect(int fd, const struct sockaddr * addr, socklen_t len)
 }
 
 
-ssize_t arecv(int fd, void * buff, size_t len, int flags) 
+size_t arecv(int fd, void * buff, size_t len, int flags) 
 {
     co_debug("async recv");
     io_wait(fd, IO_READ);
@@ -82,7 +83,7 @@ ssize_t arecv(int fd, void * buff, size_t len, int flags)
     return __recv(fd, buff, len, flags);
 }
 
-ssize_t asend(int fd, const void * buff, size_t len, int flags)
+size_t asend(int fd, const void * buff, size_t len, int flags)
 {
     co_debug("async send");
     io_wait(fd, IO_WRITE);
@@ -93,9 +94,13 @@ ssize_t asend(int fd, const void * buff, size_t len, int flags)
 int aclose(int fd)
 {
     io_del(fd);
+#ifdef WIN32
+    closesocket(fd);
+    return 0;
+#else
     return __close(fd);
+#endif
 }
-
 
 #ifdef WIN32
 
@@ -115,7 +120,9 @@ void hook_sys_call()
 	HOOK_FUNC(connect);
     HOOK_FUNC(recv);
     HOOK_FUNC(send);
+#ifndef WIN32
     HOOK_FUNC(close);
+#endif
 }
 
 

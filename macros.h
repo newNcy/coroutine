@@ -16,7 +16,14 @@
 
 #define async (void*)
 #ifndef __cplusplus
-#define thread_local __thread
+    #ifndef WIN32
+        #define thread_local __thread
+    #else
+        #define thread_local __declspec(thread)
+    #endif
+#endif
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
 #endif
 
 

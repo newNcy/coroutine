@@ -1,4 +1,5 @@
 #include "aio.h"
+#include "macros.h"
 #ifdef WIN32
 #include <winsock2.h>
 #else
@@ -32,6 +33,7 @@ void event_del(io_mgr_t * io_mgr, int fd)
 {
     select_state_t * state = (select_state_t*)io_mgr->event_ctx;
     FD_CLR(fd, &state->all_fds);
+    return;
     if (state->max_fd == fd) {
         state->max_fd --;
         while (!FD_ISSET(state->max_fd, &state->all_fds)) {

@@ -9,8 +9,8 @@
 #include <stdlib.h>
 
 
-typedef struct sockaddr_in sockaddr_in;
-typedef struct sockaddr sockaddr;
+//typedef struct sockaddr_in sockaddr_in;
+//typedef struct sockaddr sockaddr;
 
 typedef struct 
 {
@@ -73,11 +73,11 @@ int parse_http_request(char * buff, int len, http_request_t * request)
     byte_took ++;
 
 
-    printf("|%s|%s|%s|\n", request->method, request->uri, request->version);
+    //printf("|%s|%s|%s|\n", request->method, request->uri, request->version);
 
     char header[256];
     while (take_header(buff, len, &byte_took, header, 255)) {
-        printf("%s\n", header);
+        //printf("%s\n", header);
     }
     return 1;
 }
@@ -109,7 +109,7 @@ void async_handle_connection(int conn)
     while(true) {
         int rc = arecv(conn, buff + used, 1024 - used, 0);
         if (rc == 0) {
-            printf("connection[%d] closed\n", conn);
+            //printf("connection[%d] closed\n", conn);
             break;
         }
 
@@ -140,7 +140,7 @@ void heartbeat()
 void async_main()
 {
 
-    co_start(heartbeat, 0);
+    //co_start(heartbeat, 0);
 #ifdef WIN32
     WORD word = MAKEWORD(2, 2);
     WSADATA wdata;
@@ -152,12 +152,12 @@ void async_main()
 
     int sock = asocket(AF_INET, SOCK_STREAM, 0);
 
-    sockaddr_in bind_info; 
+    struct sockaddr_in bind_info; 
     bind_info.sin_family = AF_INET;
     bind_info.sin_addr.s_addr = htonl(INADDR_ANY);
     bind_info.sin_port = htons(80);
 
-    int err = bind(sock, (sockaddr*)&bind_info, sizeof(bind_info));
+    int err = bind(sock, (struct sockaddr*)&bind_info, sizeof(bind_info));
 
     int dummy;
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &dummy, sizeof(dummy));
@@ -167,13 +167,13 @@ void async_main()
         return;
     }
 
-    err = listen(sock, 100);
+    err = listen(sock, 1024);
     
-    printf("listen on %d\n", 80);
+    printf("%d listen on %d\n", sock, 80);
     while(true) {
-        sockaddr_in client;
+        struct sockaddr_in client;
         int len = sizeof(client);
-        int conn = aaccept(sock, (sockaddr *)&client, &len);
+        int conn = aaccept(sock, (struct sockaddr *)&client, &len);
         unsigned char * ip = (char*)&client.sin_addr.s_addr;
         printf("[%d.%d.%d.%d:%d]\n", ip[0], ip[1], ip[2], ip[3], htons(client.sin_port));
         co_start(async_handle_connection, conn);

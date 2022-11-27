@@ -1,7 +1,8 @@
 #include "aio.h"
 #include "coroutine.h"
+#include "macros.h"
 #ifdef WIN32
-#include <winsock.h>
+#include <winsock2.h>
 #else 
 #include <fcntl.h>
 #endif
@@ -103,12 +104,12 @@ void io_add(fd)
         map_set(&thread_env()->io_mgr.wait_map, fd, wait);
     }
     event_add(&thread_env()->io_mgr, fd);
-    co_debug("%d add to io set", fd);
+    co_info("%d add to io set", fd);
 }
 
 void io_del(fd)
 {
-    co_debug("%d remove from io set", fd);
+    co_info("%d remove from io set", fd);
     event_del(&thread_env()->io_mgr, fd);
     map_iterator_t iter = map_find(&thread_env()->io_mgr.wait_map, fd);
     if (map_iterator_valid(&thread_env()->io_mgr.wait_map, iter)) {

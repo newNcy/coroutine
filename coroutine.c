@@ -4,6 +4,7 @@
 #include <assert.h>
 #include "array.h"
 #include "heap.h"
+#include "macros.h"
 thread_local env_t env;
 
 env_t * thread_env()

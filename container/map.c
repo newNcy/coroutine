@@ -223,8 +223,9 @@ void map_erase_iter(map_t * map, map_iterator_t iter)
         return;
     }
 
-    if (iter == map->root) {
+    if (iter == map->root && map->size == 1) {
         map->root = nullptr;
+        map->size --;
         free(iter);
         return;
     }

@@ -2,10 +2,16 @@
 cmake_minimum_required(VERSION 2.8)
 project(coroutine)
 
-enable_language(C ASM)
+enable_language(C)
 
+if (UNIX)
+    enable_language(ASM)
+    set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-g#define -D_GNU_SOURCE -fno-strict-aliasing -D_GNU_SOURCE -Wall -pipe -fPIC -Wno-deprecated" )
+    set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} " -D_REENTRANT  -m64 -DLOG_INFO -DLOG_DEBUG")
+else()
+     enable_language(ASM_MASM)
+endif()
 
-set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-g -fno-strict-aliasing -Wall -pipe  -D_GNU_SOURCE -D_REENTRANT -fPIC -Wno-deprecated -m64 -DLOG_INFO -DLOG_DEBUG")
 
 include_directories(container)
 add_library(container
@@ -21,6 +27,7 @@ add_library(coroutine
     timer.c
     aio.c
 	)
+set_property(SOURCE context.S PROPERTY LANGUAGE ASM)
 
 add_library(aio aio.c)
 
