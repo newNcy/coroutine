@@ -33,7 +33,7 @@ swap_ctx:
     movq 80(%rdx), %r14
     movq 88(%rdx), %r15
     // put return value
-    movq 99(%rdx), %rax
+    movq 96(%rdx), %rax
 
     // pass args when enter function
     movq 40(%rdx), %rcx

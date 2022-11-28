@@ -5,6 +5,7 @@
 #else
 #include <sys/select.h>
 #endif
+#include <stdlib.h>
 
 typedef struct
 {

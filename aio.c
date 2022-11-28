@@ -6,6 +6,7 @@
 #else 
 #include <fcntl.h>
 #endif
+#include <stdlib.h>
 
 void io_init()
 {

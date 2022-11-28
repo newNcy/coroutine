@@ -9,7 +9,7 @@ if (UNIX)
     set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-g -D_GNU_SOURCE -fno-strict-aliasing -D_GNU_SOURCE -Wall -pipe -fPIC -Wno-deprecated" )
     #set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} " -m64 -DLOG_INFO -DLOG_DEBUG")
 else()
-     enable_language(ASM_MASM)
+    enable_language(ASM_MASM)
 endif()
 
 
@@ -21,15 +21,17 @@ add_library(container
         container/map.c)
 
 add_library(coroutine
-	hook.c
 	coroutine.c
-	context.S
     timer.c
-    aio.c
 	)
-set_property(SOURCE context.S PROPERTY LANGUAGE ASM)
+if (WIN32)
+    target_sources(coroutine PRIVATE context.asm)
+else()
+    target_sources(coroutine PRIVATE context.s)
+endif()
 
-add_library(aio aio.c)
+
+add_library(aio aio.c hook.c)
 
 if(UNIX) 
     target_sources(aio PRIVATE aio_epoll.c)
