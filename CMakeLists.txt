@@ -4,7 +4,7 @@ project(coroutine)
 
 enable_language(C)
 
-if (UNIX)
+if (UNIX OR MINGW)
     enable_language(ASM)
     set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-g -D_GNU_SOURCE -fno-strict-aliasing -D_GNU_SOURCE -Wall -pipe -fPIC -Wno-deprecated" )
     #set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} " -m64 -DLOG_INFO -DLOG_DEBUG")
@@ -18,20 +18,23 @@ add_library(container
         container/array.c
         container/heap.c
         container/list.c
-        container/map.c)
+        container/map.c
+        )
 
 add_library(coroutine
 	coroutine.c
     timer.c
 	)
-if (WIN32)
-    target_sources(coroutine PRIVATE context.asm)
-else()
+
+if (UNIX OR MINGW)
     target_sources(coroutine PRIVATE context.s)
+else()
+    target_sources(coroutine PRIVATE context.asm)
 endif()
 
 
 add_library(aio aio.c hook.c)
+target_link_libraries(aio container)
 
 if(UNIX) 
     target_sources(aio PRIVATE aio_epoll.c)

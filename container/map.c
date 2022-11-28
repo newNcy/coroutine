@@ -15,6 +15,11 @@ void rb_node_destroy(rb_node_t * node)
     free(node);
 }
 
+void rb_node_set_red(rb_node_t * node, int is_red)
+{
+    node->color = is_red ? RB_COLOR_RED : RB_COLOR_BLACK;
+}
+
 rb_node_t * rb_rotate_left(rb_node_t * node)
 {
     if (!node) {
@@ -31,8 +36,11 @@ rb_node_t * rb_rotate_left(rb_node_t * node)
 
     right->parent = node->parent;
     node->parent = right;
+    rb_node_set_red(node, 1);
+    rb_node_set_red(right, 0);
     return right;
 }
+
 
 rb_node_t * rb_rotate_right(rb_node_t * node)
 {
@@ -50,17 +58,22 @@ rb_node_t * rb_rotate_right(rb_node_t * node)
     
     left->parent = node->parent;
     node->parent = left;
+    rb_node_set_red(node, 1);
+    rb_node_set_red(left, 0);
     return left;
 }
 
-void rb_node_set_red(rb_node_t * node, int is_red)
-{
-    node->color = is_red ? RB_COLOR_RED : RB_COLOR_BLACK;
-}
 
 int rb_node_is_red(rb_node_t* node)
 {
-    return node->color == RB_COLOR_RED;
+    return node && node->color == RB_COLOR_RED;
+}
+
+void rb_node_flip_color(rb_node_t * n)
+{
+    if (n) rb_node_set_red(n, 1);
+    if (n->left) rb_node_set_red(n->left, 0);
+    if (n->right) rb_node_set_red(n->right, 0);
 }
 
 void rb_node_init(rb_node_t * node)
@@ -106,84 +119,30 @@ rb_node_t ** rb_place_of(rb_tree_t * t, rb_node_t * node)
 	return node == node->parent->left? &(node->parent->left) : &(node->parent->right);
 }
 
+
+rb_node_t * rb_put(rb_node_t * n, any_t key, any_t value, any_compare_t less, rb_node_t ** ret)
+{
+    if (!n) return *ret = rb_node_create(key, value);
+    if (less(key, n->key)) n->left = rb_put(n->left, key, value, less, ret);
+    else if (less(n->key, key)) n->right = rb_put(n->right, key, value, less, ret);
+    else n->value = value;
+
+    if (rb_node_is_red(n->right) && !rb_node_is_red(n->left)) n = rb_rotate_left(n);
+    else if (rb_node_is_red(n->left) && rb_node_is_red(n->left->left)) n = rb_rotate_right(n);
+    else if (rb_node_is_red(n->left) && rb_node_is_red(n->right)) rb_node_flip_color(n);
+    return n;
+}
+
+
 map_iterator_t map_set(map_t * map, any_t key, any_t value)
 {
     if (!map || !map->less || !map->equals) {
         return nullptr;
     }
 
-    if (!map->root) {
-        rb_node_t * node = rb_node_create(key, value);
-        rb_node_set_red(node, 0);
-        map->root = node;
-        map->size ++;
-        return map->root;
-    }
-
-    rb_node_t * iter = map->root;
-    any_compare_t less = map->less;
-    any_compare_t equals = map->equals;
-
-    map_iterator_t ret = nullptr;
-
-    while (iter) {
-        if (equals(key, iter->key)) {
-            iter->value = value;
-            return iter;
-        }
-        rb_node_t ** next = nullptr;
-        if (less(key, iter->key)) {
-            next = &iter->left;
-        } else {
-            next = &iter->right;
-        }
-            
-        if (!*next) {
-            rb_node_t * node = rb_node_create(key, value);
-            *next = node;
-            node->parent = iter;
-            map->size ++;
-            ret = node;
-            break;
-        }
-        
-        iter = *next;
-    }
-
-    /* insert-fixup */
-    rb_node_t * node = ret;
-    while (node->parent && rb_node_is_red(node->parent)) {
-        rb_node_t * parent = node->parent;
-        rb_node_t * grandp = parent->parent;
-        rb_node_t * uncle = grandp->left != parent? grandp->left : grandp->right;
-
-        if (uncle &&  rb_node_is_red(uncle)) {
-            rb_node_set_red(parent, 0);
-            rb_node_set_red(uncle, 0);
-            rb_node_set_red(grandp, 1);
-            node = grandp;
-        } else {
-            if (node == parent->left && uncle == grandp->left) {
-                grandp->right = rb_rotate_right(parent);
-                node = parent;
-            } else if (node == parent->right && uncle == grandp->right) {
-                grandp->left = rb_rotate_left(parent);
-                node = parent;
-            } else {
-                rb_node_t ** grandp_ptr = rb_place_of(map, grandp);
-                rb_node_set_red(parent, 0);
-                rb_node_set_red(grandp, 1);
-                if (node == parent->left && uncle == grandp->right) {
-                    *grandp_ptr = rb_rotate_right(grandp);
-                } else {
-                    *grandp_ptr = rb_rotate_left(grandp);
-                }
-            }
-        }
-    }
-    if (rb_node_is_red(map->root)) {
-        rb_node_set_red(map->root, 0);
-    }
+    map_iterator_t ret;
+    map->root = rb_put(map->root, key, value, map->less, &ret);
+    rb_node_set_red(map->root, 0);
     return ret;
 }
 

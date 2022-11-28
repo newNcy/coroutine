@@ -2,10 +2,9 @@
 .global  _swap_ctx
 _swap_ctx:
 #else
-.global  swap_ctx
+.global swap_ctx
 swap_ctx:
 #endif
-
 #ifdef WIN32
     movq (%rsp), %rax  //return address
     movq %rsp, (%rcx)
