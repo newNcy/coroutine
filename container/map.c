@@ -71,9 +71,9 @@ int rb_node_is_red(rb_node_t* node)
 
 void rb_node_flip_color(rb_node_t * n)
 {
-    if (n) rb_node_set_red(n, 1);
-    if (n->left) rb_node_set_red(n->left, 0);
-    if (n->right) rb_node_set_red(n->right, 0);
+    if (n) rb_node_set_red(n, !rb_node_is_red(n));
+    if (n->left) rb_node_set_red(n->left, !rb_node_is_red(n));
+    if (n->right) rb_node_set_red(n->right, !rb_node_is_red(n));
 }
 
 void rb_node_init(rb_node_t * node)

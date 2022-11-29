@@ -18,7 +18,7 @@ typedef struct
 
 
 list_node_t * list_node_create();
-
+list_t * list_create();
 void list_node_destroy(list_node_t * node);
 void list_init(list_t * list);
 any_t list_front(list_t * list);

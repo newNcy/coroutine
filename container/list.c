@@ -26,6 +26,13 @@ void list_init(list_t * list)
     list->tail = nullptr;
 }
 
+list_t * list_create()
+{
+    list_t * list = (list_t*)malloc(sizeof(list_t));
+    list_init(list);
+    return list;
+}
+
 any_t list_front(list_t * list)
 {
     return list->head->value;
@@ -39,22 +46,29 @@ any_t list_back(list_t * list)
 void list_push_front(list_t * list, any_t value)
 {
     list_node_t * node = list_node_create();
-    node->next = list->head;
-    list->head->prev = node;
-
-    node->value = value;
-    list->head = node;
     list->size ++;
+    node->value = value;
+    if (list->head) {
+        list->head->prev = node;
+        return;
+    }
+    list->head->prev = node;
+    node->next = list->head;
+    list->head = node;
 }
 
 void list_push_back(list_t * list, any_t value)
 {
     list_node_t * node = list_node_create();
     node->value = value;
+    list->size ++;
+    if (!list->head) {
+        list->head = list->tail = node;
+        return;
+    }
     list->tail->next = node;
     node->prev = list->tail;
-    node->value = value;
-    list->size ++;
+    list->tail = node;
 }
 
 void list_pop_front(list_t * list)
