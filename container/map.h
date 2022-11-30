@@ -45,3 +45,6 @@ void map_iterator_set( map_iterator_t iter, any_t value);
 size_t map_size(map_t * map);
 map_iterator_t map_begin(map_t *map);
 map_iterator_t map_end(map_t *map);
+
+void map_remove_min(map_t * map);
+void tree_print(rb_node_t * node);

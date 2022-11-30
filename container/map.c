@@ -1,5 +1,74 @@
 #include "map.h"
 #include <stdlib.h>
+#include "list.h"
+
+
+int item_w = 1;
+
+int space_forh(int h)
+{
+    if (h == 1) return 0;
+    return 2 * space_forh(h-1) + item_w;
+}
+
+void space(int c)
+{
+    for (int i = 0; i < c; ++ i) {
+        printf(" ");
+    }
+}
+int tree_height(rb_node_t * node)
+{
+    if (!node) return 0;
+    int lh = 1 + tree_height(node->left);
+    int rh = 1 + tree_height(node->right);
+    return lh > rh ? lh : rh;
+}
+
+void tree_print(rb_node_t * node)
+{
+    if (!node) {
+        return;
+    }
+    list_t * cur = list_create();
+    list_t * nxt = list_create();
+
+    list_push_back(cur, node);
+    int height = tree_height(node);
+    int valid = 1;
+    while (valid) {
+        valid = 0;
+        int sp = space_forh(height);
+        int sp2 = space_forh(height+1);
+        space(sp);
+        while (!list_empty(cur)) {
+            rb_node_t * n = (rb_node_t*)list_front(cur);
+            list_pop_front(cur);
+            if (n) {
+                if (rb_node_is_red(n)) {
+                    printf("\e[31m%d\e[0m", n->key);
+                } else {
+                    printf("%d", n->key);
+                }
+                list_push_back(nxt, n->left);
+                list_push_back(nxt, n->right);
+                if (n->left) valid ++;
+                if (n->right) valid ++;
+            } else {
+                printf(" ");
+                list_push_back(nxt, NULL);
+                list_push_back(nxt, NULL);
+            }
+            space(sp2);
+        }
+        list_t * tmp = cur;
+        cur = nxt;
+        nxt = tmp;
+        height --;
+        printf("\n");
+    }
+}
+
 
 void rb_node_destroy(rb_node_t * node) 
 {
@@ -72,8 +141,8 @@ int rb_node_is_red(rb_node_t* node)
 void rb_node_flip_color(rb_node_t * n)
 {
     if (n) rb_node_set_red(n, !rb_node_is_red(n));
-    if (n->left) rb_node_set_red(n->left, !rb_node_is_red(n));
-    if (n->right) rb_node_set_red(n->right, !rb_node_is_red(n));
+    if (n->left) rb_node_set_red(n->left, !rb_node_is_red(n->left));
+    if (n->right) rb_node_set_red(n->right, !rb_node_is_red(n->right));
 }
 
 void rb_node_init(rb_node_t * node)
@@ -119,6 +188,13 @@ rb_node_t ** rb_place_of(rb_tree_t * t, rb_node_t * node)
 	return node == node->parent->left? &(node->parent->left) : &(node->parent->right);
 }
 
+rb_node_t * rb_fixup(rb_node_t * n)
+{
+    if (rb_node_is_red(n->right) && !rb_node_is_red(n->left)) n = rb_rotate_left(n);
+    else if (rb_node_is_red(n->left) && rb_node_is_red(n->left->left)) n = rb_rotate_right(n);
+    else if (rb_node_is_red(n->left) && rb_node_is_red(n->right)) rb_node_flip_color(n);
+    return n;
+}
 
 rb_node_t * rb_put(rb_node_t * n, any_t key, any_t value, any_compare_t less, rb_node_t ** ret)
 {
@@ -127,10 +203,7 @@ rb_node_t * rb_put(rb_node_t * n, any_t key, any_t value, any_compare_t less, rb
     else if (less(n->key, key)) n->right = rb_put(n->right, key, value, less, ret);
     else n->value = value;
 
-    if (rb_node_is_red(n->right) && !rb_node_is_red(n->left)) n = rb_rotate_left(n);
-    else if (rb_node_is_red(n->left) && rb_node_is_red(n->left->left)) n = rb_rotate_right(n);
-    else if (rb_node_is_red(n->left) && rb_node_is_red(n->right)) rb_node_flip_color(n);
-    return n;
+    return rb_fixup(n); 
 }
 
 
@@ -378,3 +451,80 @@ size_t map_size(map_t * map)
 {
     return map->size;
 }
+
+rb_node_t * rb_move_red_left(rb_node_t * node) 
+{
+    rb_node_flip_color(node);
+    if (node->right && rb_node_is_red(node->right->left)) {
+        node->right = rb_rotate_right(node->right);
+        node = rb_rotate_left(node);
+        rb_node_flip_color(node);
+    }
+
+    return node;
+}
+rb_node_t * rb_move_red_right(rb_node_t * node)
+{
+    rb_node_flip_color(node);
+    // 同样这里两边：
+    if (node->left && rb_node_is_red(node->left->left)) {
+        node->left = rb_rotate_right(node->left);
+        rb_node_flip_color(node);
+    }
+
+    return node;
+}
+
+rb_node_t * rb_remove_min(rb_node_t * root, rb_node_t * node)
+{
+    if (!node->left) {
+        //delete node...
+        return nullptr;
+    }
+
+    tree_print(root);
+    if (!rb_node_is_red(node->left) && !rb_node_is_red(node->left->left)) {
+        rb_move_red_left(node);
+        tree_print(root);
+    }
+
+    node->left = rb_remove_min(root, node->left);
+    tree_print(root);
+    node = rb_fixup(node);
+    tree_print(root);
+    return node;
+}
+
+rb_node_t * rb_remove(rb_node_t * node, any_t key, any_compare_t less)
+{
+    if (!node) {
+        return nullptr;
+    }
+
+    // 待删除节点在左边
+    if (less(key, node->key)) {
+        if (node->left) {
+            // 如果接下来两个都没有红色的
+            // 通过把三个节点反色制造红色，同时黑高平衡
+            // 也不会造成两个红色在一条路径
+            if (!rb_node_is_red(node->left) && !rb_node_is_red(node->left->left)) {     
+            }
+             
+        }
+    }
+}
+
+void map_remove_min(map_t * map)
+{
+    if (map->root) {
+        map->root = rb_remove_min(map->root, map->root);
+        if (map->root) {
+            rb_node_set_red(map->root, 0);
+        }
+    }
+}
+
+void map_remove_key(map_t * map, any_t key)
+{
+}
+
