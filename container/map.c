@@ -17,6 +17,7 @@ void space(int c)
         printf(" ");
     }
 }
+
 int tree_height(rb_node_t * node)
 {
     if (!node) return 0;
@@ -30,6 +31,8 @@ void tree_print(rb_node_t * node)
     if (!node) {
         return;
     }
+    while (node->parent) node = node->parent;
+
     list_t * cur = list_create();
     list_t * nxt = list_create();
 
@@ -190,9 +193,13 @@ rb_node_t ** rb_place_of(rb_tree_t * t, rb_node_t * node)
 
 rb_node_t * rb_fixup(rb_node_t * n)
 {
+    tree_print(n);
     if (rb_node_is_red(n->right) && !rb_node_is_red(n->left)) n = rb_rotate_left(n);
-    else if (rb_node_is_red(n->left) && rb_node_is_red(n->left->left)) n = rb_rotate_right(n);
-    else if (rb_node_is_red(n->left) && rb_node_is_red(n->right)) rb_node_flip_color(n);
+    tree_print(n);
+    if (rb_node_is_red(n->left) && rb_node_is_red(n->left->left)) n = rb_rotate_right(n);
+    tree_print(n);
+    if (rb_node_is_red(n->left) && rb_node_is_red(n->right)) rb_node_flip_color(n);
+    tree_print(n);
     return n;
 }
 
@@ -475,23 +482,23 @@ rb_node_t * rb_move_red_right(rb_node_t * node)
     return node;
 }
 
-rb_node_t * rb_remove_min(rb_node_t * root, rb_node_t * node)
+rb_node_t * rb_remove_min(rb_node_t * node)
 {
     if (!node->left) {
         //delete node...
         return nullptr;
     }
 
-    tree_print(root);
+    tree_print(node);
     if (!rb_node_is_red(node->left) && !rb_node_is_red(node->left->left)) {
         rb_move_red_left(node);
-        tree_print(root);
+        tree_print(node);
     }
 
-    node->left = rb_remove_min(root, node->left);
-    tree_print(root);
+    node->left = rb_remove_min(node->left);
+    tree_print(node);
     node = rb_fixup(node);
-    tree_print(root);
+    tree_print(node);
     return node;
 }
 
@@ -517,7 +524,7 @@ rb_node_t * rb_remove(rb_node_t * node, any_t key, any_compare_t less)
 void map_remove_min(map_t * map)
 {
     if (map->root) {
-        map->root = rb_remove_min(map->root, map->root);
+        map->root = rb_remove_min(map->root);
         if (map->root) {
             rb_node_set_red(map->root, 0);
         }

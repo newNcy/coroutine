@@ -46,7 +46,7 @@ int main()
 
     map_t map;
     map_init(&map, compare, compare_e);
-    for (int i = 1; i <= 7; ++ i) {
+    for (int i = 7; i >= 1; -- i) {
         map_set(&map, i, i);
         tree_print(map.root);
         printf("++++++++++++++++++++++++++++\n");
