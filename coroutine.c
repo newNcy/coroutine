@@ -85,7 +85,7 @@ int co_create(void * entry, void * args)
 	// 对齐
     co->ctx.rsp = co->ctx.rbp - 16; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte
 #else 
-    co->ctx.rsp = co->ctx.rbp; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte 
+    co->ctx.rsp = co->ctx.rbp ; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte 
 #endif
     co->ctx.rip = (uint64_t)co_wrap;
 #ifdef WIN32

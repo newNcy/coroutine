@@ -4,6 +4,7 @@
 #include "list.h"
 #include "aio.h"
 #include "coroutine.h"
+#include <stdlib.h>
 
 
 int timeval_less(struct timeval * lhs, struct timeval * rhs)

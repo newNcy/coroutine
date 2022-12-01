@@ -116,7 +116,7 @@ void io_del(fd)
     if (map_iterator_valid(&thread_env()->io_mgr.wait_map, iter)) {
         wait_info_t * wait = map_iterator_get(iter);
         free(wait);
-        map_erase_iter(&thread_env()->io_mgr.wait_map, iter);
+        map_remove_key(&thread_env()->io_mgr.wait_map, fd);
     }
 }
 

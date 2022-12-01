@@ -193,13 +193,9 @@ rb_node_t ** rb_place_of(rb_tree_t * t, rb_node_t * node)
 
 rb_node_t * rb_fixup(rb_node_t * n)
 {
-    tree_print(n);
     if (rb_node_is_red(n->right) && !rb_node_is_red(n->left)) n = rb_rotate_left(n);
-    tree_print(n);
     if (rb_node_is_red(n->left) && rb_node_is_red(n->left->left)) n = rb_rotate_right(n);
-    tree_print(n);
     if (rb_node_is_red(n->left) && rb_node_is_red(n->right)) rb_node_flip_color(n);
-    tree_print(n);
     return n;
 }
 
@@ -223,6 +219,7 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
     map_iterator_t ret;
     map->root = rb_put(map->root, key, value, map->less, &ret);
     rb_node_set_red(map->root, 0);
+    map->size++;
     return ret;
 }
 
@@ -482,56 +479,87 @@ rb_node_t * rb_move_red_right(rb_node_t * node)
     return node;
 }
 
-rb_node_t * rb_remove_min(rb_node_t * node)
+rb_node_t * rb_remove_min(rb_node_t * node, rb_node_t ** out)
 {
     if (!node->left) {
-        //delete node...
+        *out = node;
         return nullptr;
     }
 
-    tree_print(node);
     if (!rb_node_is_red(node->left) && !rb_node_is_red(node->left->left)) {
         rb_move_red_left(node);
-        tree_print(node);
     }
 
-    node->left = rb_remove_min(node->left);
-    tree_print(node);
+    node->left = rb_remove_min(node->left, out);
     node = rb_fixup(node);
-    tree_print(node);
     return node;
 }
 
-rb_node_t * rb_remove(rb_node_t * node, any_t key, any_compare_t less)
+rb_node_t * rb_remove(rb_node_t * node, any_t key, any_compare_t less, rb_node_t ** out)
 {
     if (!node) {
         return nullptr;
     }
 
-    // 待删除节点在左边
     if (less(key, node->key)) {
         if (node->left) {
-            // 如果接下来两个都没有红色的
-            // 通过把三个节点反色制造红色，同时黑高平衡
-            // 也不会造成两个红色在一条路径
-            if (!rb_node_is_red(node->left) && !rb_node_is_red(node->left->left)) {     
+            if (!rb_node_is_red(node->left) && node->left && !rb_node_is_red(node->left->left)) {     
+                node = rb_move_red_left(node);
             }
-             
+            node->left = rb_remove(node->left, key, less, out);
+        }
+    } else {
+        if (rb_node_is_red(node->left)) {
+            node = rb_rotate_right(node);
+        }
+        int eq = !less(node->key, key);
+        if (eq && node->right == nullptr) {
+            *out = node;
+            return nullptr;
+        }
+
+        if (!rb_node_is_red(node->right) && node->right && !rb_node_is_red(node->right->left)) {
+            node = rb_move_red_right(node);
+        }
+
+        if (eq) {
+            rb_node_t * min_node = rb_minimum(node->right);
+            node->key = min_node->key;
+            node->value = min_node->value;
+            node->right = rb_remove_min(node->right, out);
+        }else {
+            node->right = rb_remove(node->right, key, less, out);
         }
     }
+
+    return node ? rb_fixup(node) : node;
 }
 
 void map_remove_min(map_t * map)
 {
     if (map->root) {
-        map->root = rb_remove_min(map->root);
+        rb_node_t* to_remove = nullptr;
+        map->root = rb_remove_min(map->root,&to_remove);
         if (map->root) {
             rb_node_set_red(map->root, 0);
+        }
+        if (to_remove) {
+            rb_node_destroy(to_remove);
+            map->size--;
         }
     }
 }
 
 void map_remove_key(map_t * map, any_t key)
 {
+    rb_node_t* to_remove = nullptr;
+    map->root = rb_remove(map->root, key, map->less, &to_remove);
+    if (map->root) {
+        rb_node_set_red(map->root, 0);
+    }
+    if (to_remove) {
+        rb_node_destroy(to_remove);
+        map->size--;
+    }
 }
 

@@ -52,14 +52,16 @@ int main()
         printf("++++++++++++++++++++++++++++\n");
     }
 
-    //map_remove_min(&map);
-    //tree_print(map.root);
+    map_remove_key(&map, 7);
+    tree_print(map.root);
 
-    for (int i = 1; i <= 7; ++ i) {
-        map_remove_min(&map);
+    /*
+    for (int i = 7; i >= 1; -- i) {
+        map_remove_key(&map, i);
         tree_print(map.root);
         printf("------------------------------\n");
     }
+    */
     
 }
 

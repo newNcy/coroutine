@@ -6,7 +6,8 @@ _swap_ctx:
 swap_ctx:
 #endif
 #ifdef WIN32
-    movq (%rsp), %rax  //return address
+    //return address
+    movq (%rsp), %rax  
     movq %rsp, (%rcx)
     movq %rbp, 8(%rcx)
     movq %rax, 16(%rcx)
@@ -38,7 +39,8 @@ swap_ctx:
     movq 40(%rdx), %rcx
     movq 48(%rdx), %rdx
 #else
-    movq (%rsp), %rax  //return address
+    //return address
+    movq (%rsp), %rax  
     movq %rsp, (%rdi)
     movq %rbp, 8(%rdi)
     movq %rax, 16(%rdi)

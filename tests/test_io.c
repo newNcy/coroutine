@@ -129,18 +129,18 @@ void async_handle_connection(int conn)
     aclose(conn);
 }
 
-void heartbeat()
+void heartbeat(int sec)
 {
     while (true) {
         printf("loop...\n");
-        sleep(1);
+        sleep(sec);
     }
 }
 
 void async_main()
 {
 
-    //co_start(heartbeat, 0);
+    co_start(heartbeat, 3);
 #ifdef WIN32
     WORD word = MAKEWORD(2, 2);
     WSADATA wdata;

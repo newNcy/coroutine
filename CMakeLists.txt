@@ -11,6 +11,7 @@ if (UNIX OR MINGW)
 else()
     enable_language(ASM_MASM)
 endif()
+# set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-m64 -DLOG_INFO -DLOG_DEBUG")
 
 
 include_directories(container)
