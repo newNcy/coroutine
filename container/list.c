@@ -1,12 +1,18 @@
 #include "list.h"
 #include <stdlib.h>
 
-list_node_t * list_node_create()
+void list_node_init(list_node_t * node)
 {
-    list_node_t * node = (list_node_t*)malloc(sizeof(list_node_t));
     node->value = nullptr;
     node->prev = nullptr;
     node->next = nullptr;
+}
+
+
+list_node_t * list_node_create()
+{
+    list_node_t * node = (list_node_t*)malloc(sizeof(list_node_t));
+    list_node_init(node);
     return node;
 }
 
@@ -22,8 +28,10 @@ void list_node_destroy(list_node_t * node)
 void list_init(list_t * list)
 {
     list->size = 0;
-    list->head = nullptr;
-    list->tail = nullptr;
+    list_node_init(&list->head);
+    list_node_init(&list->tail);
+    list->head.next = &list->tail;
+    list->tail.prev = &list->head;
 }
 
 list_t * list_create()
@@ -35,12 +43,12 @@ list_t * list_create()
 
 any_t list_front(list_t * list)
 {
-    return list->head->value;
+    return *list_begin(list);
 }
 
 any_t list_back(list_t * list)
 {
-    return list->tail->value;
+    return *list_rbegin(list);
 }
 
 void list_push_front(list_t * list, any_t value)
@@ -48,13 +56,12 @@ void list_push_front(list_t * list, any_t value)
     list_node_t * node = list_node_create();
     list->size ++;
     node->value = value;
-    if (list->head) {
-        list->head->prev = node;
-        return;
-    }
-    list->head->prev = node;
-    node->next = list->head;
-    list->head = node;
+
+    list->head.next->prev = node;
+    node->next = list->head.next;
+
+    list->head.next = node;
+    node->prev = &list->head;
 }
 
 void list_push_back(list_t * list, any_t value)
@@ -62,40 +69,39 @@ void list_push_back(list_t * list, any_t value)
     list_node_t * node = list_node_create();
     node->value = value;
     list->size ++;
-    if (!list->head) {
-        list->head = list->tail = node;
-        return;
-    }
-    list->tail->next = node;
-    node->prev = list->tail;
-    list->tail = node;
+
+    list->tail.prev->next = node;
+    node->prev = list->tail.prev;
+
+    llist->tail.prev = node;
+    node->next = &list->tail;
 }
 
 void list_pop_front(list_t * list)
 {
-    list_node_t * head = list->head->next;
-    list_node_destroy(list->head);
-    
-    if (head) {
-        head->prev = nullptr;
-    } else {
-        list->tail = nullptr;
-    }
-    list->head = head;
+    list_node_t * n = list->head.next;
+    list->head.next = n->next;
+    n->next->prev = &list.head;
+
+    any_t value = n->value;
+    list_node_destroy(n);
     list->size --;
+
+    return value ;
 }
 
 void list_pop_back(list_t * list)
 {
-    list_node_t * tail = list->tail->prev;
-    list_node_destroy(list->tail);
+    list_node_t * n = list->tail.prev;
 
-    if (tail) {
-        tail->next = nullptr;
-    } else {
-        list->head = nullptr;
-    }
+    list.tail.prev = n->prev;
+    n->prev->next = &list.tail;
+
+    any_t value = n->value;
+    list_node_destroy(n);
     list->size --;
+
+    return value;
 }
 
 
@@ -113,9 +119,4 @@ void list_destroy(list_t * list)
 size_t list_size(list_t * list)
 {
     return list->size;
-}
-
-int list_empty(list_t * list)
-{
-    return list_size(list) == 0;
 }

@@ -6,6 +6,7 @@
 #include "aio.h"
 #include "array.h"
 #include "heap.h"
+#include "list.h"
 #include "timer.h"
 #include "macros.h"
 #ifdef __cplusplus
@@ -43,36 +44,34 @@ typedef struct
     //for return value
     reg_t rax;
 
-} context_t;
+} ctx_t;
 
-struct coroutine_t;
+struct co_t;
 
-typedef void * (*coroutine_entry_t)(void *args);
-typedef struct coroutine_t
+typedef void * (*co_entry_t)(void *args);
+typedef struct co_t
 {
-    context_t ctx;
-    context_t main;
+    ctx_t ctx;
+    ctx_t main;
     coroutine_entry_t entry;
     co_status_t status;
 
     char * stack;
     int last_id;
-}coroutine_t;
+}co_t;
 
 
 typedef struct 
 {
-    int running;
-    array_t coroutines;
-} schedule_t;
-
-typedef struct 
-{
-    schedule_t schedule;
+    int inited;
+    int next_id;
+    co_t * running;
+    list_t * co_list;
+    list_t * free_list;
     heap_t timer_mgr;
     io_mgr_t io_mgr;
-    int inited;
-}env_t;
+} env_t;
+
 
 static int CO_ID_INVALID = -1;
 typedef struct 
@@ -84,8 +83,8 @@ typedef struct
 
 void co_init();
 
-int co_create(void *entry, void * args);
-void * co_resume(int co);
+co_t * co_create(void *entry, void * args);
+void * co_resume(co_t * co);
 void co_yield();
 
 awaitable_t co_start(void * entrry, void * args);

@@ -17,7 +17,7 @@ extern uint64_t swap_ctx(context_t * cur, context_t * next);
 /*
  * 需要协程函数执行完的时候改变状态
  */
-void co_wrap(coroutine_t * co, void * args)
+void co_wrap(co_t * co, void * args)
 {
     void * ret = co->entry(args);
     co_debug("return with %d", ret);
@@ -30,8 +30,10 @@ void co_init()
 {
     env_t * env = thread_env();
 	if (!env->inited) {
-		thread_env()->schedule.running = CO_ID_INVALID;
-		array_init(&thread_env()->schedule.coroutines);
+		env->running = NULL;
+        env->co_list = list_create();
+        env->free_list = list_create();
+        env->next_id = 0;
         co_event_init();
         hook_sys_call();
         env->inited = 1;
@@ -40,43 +42,30 @@ void co_init()
 
 void co_finish()
 {
-    for (int i = 0 ; i < thread_env()->schedule.coroutines.size; ++i) {
-        coroutine_t * co = array_get(&thread_env()->schedule.coroutines, i);
-        if (co) {
-            if (co->stack) {
-                free(co->stack);
-                co->stack = NULL;
-            }
-            free(co);
-            array_set(&thread_env()->schedule.coroutines, i, (any_t)NULL);
-        }
+    env_t * env = thread_env();
+    while (!list_empty(env->co_list)) {
+        co_t * co = (co_t*)list_pop_front(env->co_list);
+        co_destroy(co);
     }
-    thread_env()->schedule.running = CO_ID_INVALID;
-    array_destroy(&thread_env()->schedule.coroutines);
+    env->running = CO_ID_INVALID;
 }
 
-int co_create(void * entry, void * args)
+co_t * co_create(void * entry, void * args)
 {
-    int id = CO_ID_INVALID;
-    coroutine_t * co = NULL;
-    for (int i = 0; i < thread_env()->schedule.coroutines.size; ++ i) {
-        coroutine_t * exist = array_get(&thread_env()->schedule.coroutines, i);
-        if (exist->status == CO_FINISH) {
-            id = i;
-            co = exist;
-            break;
-        }
-    }
+    env_t * env = thread_env();
+    co_t * co = NULL;
 
+    if (!list_empty(env->free_list)) {
+        co = list_pop_front(env->free_list);
+    }
     /* handle coroutine memory */
-    if (id == CO_ID_INVALID) {
-        co = (coroutine_t*)malloc(sizeof(coroutine_t));
+    if (!co) {
+        co = (co_t*)malloc(sizeof(co_t));
         co->stack = (char*)malloc(CO_STACK_SIZE);
-        array_push_back(&thread_env()->schedule.coroutines, (any_t)co);
-        id = thread_env()->schedule.coroutines.size - 1;
+        id = env->next_id ++;
     }
 
-    co->entry = (coroutine_entry_t)entry;
+    co->entry = (co_entry_t)entry;
     co->status = CO_SUSPEND;
 
     co->ctx.rbp = (uint64_t)(co->stack + CO_STACK_SIZE);
@@ -96,20 +85,24 @@ int co_create(void * entry, void * args)
     co->ctx.rsi = (uint64_t)args;
 #endif
 
-    return id;
+    return co;
 }
 
-void * co_resume(int id)
+void co_destroy(co_t * co)
 {
-    if (id >= 0 && id < thread_env()->schedule.coroutines.size) {
-        coroutine_t * co = array_get(&thread_env()->schedule.coroutines, id);
-        if (co && co->status == CO_SUSPEND) {
-            co->status = CO_RUNNING;
-            co_debug("resume [%d]", id);
-            co->last_id = thread_env()->schedule.running;
-            thread_env()->schedule.running = id;
-            return swap_ctx(&co->main, &co->ctx);
-        }
+    assert(co && co->stack);
+    free(co->stack);
+    free(co);
+}
+
+void * co_resume(co_t co)
+{
+    if (co && co->status == CO_SUSPEND) {
+        co->status = CO_RUNNING;
+        co_debug("resume [%d]", id);
+        co->last_id = thread_env()->schedule.running;
+        thread_env()->schedule.running = id;
+        return swap_ctx(&co->main, &co->ctx);
     }
     return 0;
 }
@@ -118,7 +111,7 @@ void co_yield()
 {
     int id = thread_env()->schedule.running;
     if (id >= 0 && id < thread_env()->schedule.coroutines.size) {
-        coroutine_t * co = array_get(&thread_env()->schedule.coroutines, id);
+        co_t * co = array_get(&thread_env()->schedule.coroutines, id);
         if (co && (co->status == CO_RUNNING || co->status == CO_FINISH)) {
             if (co->status != CO_FINISH) {
                 co->status = CO_SUSPEND;
@@ -146,7 +139,7 @@ void *co_await(awaitable_t awaitable)
     assert (awaitable.env == thread_env());
     int id = awaitable.co_id;
     if (id >= 0 && id < thread_env()->schedule.coroutines.size) {
-        coroutine_t * co = array_get(&thread_env()->schedule.coroutines, id);
+        co_t * co = array_get(&thread_env()->schedule.coroutines, id);
         if (co) {
             while (co->status != CO_FINISH) {
                 usleep(0);
@@ -163,7 +156,7 @@ int co_is_all_finish()
 {
     int done = true;
     for (int id = 0; id < thread_env()->schedule.coroutines.size; ++ id) {
-        coroutine_t * co = array_get(&thread_env()->schedule.coroutines, id);
+        co_t * co = array_get(&thread_env()->schedule.coroutines, id);
         done = done && (co->status == CO_FINISH);
         if (!done) {
             break;
