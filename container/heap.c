@@ -21,7 +21,7 @@ void print_heap(heap_t * heap)
 
 int heap_push(heap_t * heap, any_t any)
 {
-    if (!array_push_back(&heap->array, any)) {
+    if (!array_push(&heap->array, any)) {
         return 0;
     }
     int idx = heap->array.size - 1;

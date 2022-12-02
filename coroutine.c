@@ -4,6 +4,7 @@
 #include <assert.h>
 #include "array.h"
 #include "heap.h"
+#include "list.h"
 #include "macros.h"
 thread_local env_t env;
 
@@ -12,7 +13,6 @@ env_t * thread_env()
     return &env;
 }
 
-extern uint64_t swap_ctx(context_t * cur, context_t * next);
 
 /*
  * 需要协程函数执行完的时候改变状态
@@ -23,6 +23,11 @@ void co_wrap(co_t * co, void * args)
     co_debug("return with %d", ret);
     co->status = CO_FINISH;
     co->main.rax = ret;
+    while (!list_empty(co->wait_list)) {
+        cid_t id = (cid_t)list_pop_front(co->wait_list);
+        co_resume(id);
+    }
+
     co_yield();
 }
 
@@ -30,39 +35,33 @@ void co_init()
 {
     env_t * env = thread_env();
 	if (!env->inited) {
-		env->running = NULL;
-        env->co_list = list_create();
         env->free_list = list_create();
-        env->next_id = 0;
+        env->co_pool = array_create();
+		env->running = CO_ID_INVALID;
+		env->last = CO_ID_INVALID;
+        env->inited = 1;
+
         co_event_init();
         hook_sys_call();
-        env->inited = 1;
 	}
 }
 
-void co_finish()
-{
-    env_t * env = thread_env();
-    while (!list_empty(env->co_list)) {
-        co_t * co = (co_t*)list_pop_front(env->co_list);
-        co_destroy(co);
-    }
-    env->running = CO_ID_INVALID;
-}
-
-co_t * co_create(void * entry, void * args)
+cid_t co_create(void * entry, void * args)
 {
     env_t * env = thread_env();
     co_t * co = NULL;
-
+    int id = CO_ID_INVALID;
     if (!list_empty(env->free_list)) {
-        co = list_pop_front(env->free_list);
+        id = (int)list_pop_front(env->free_list);
+        co = (co_t*)array_get(env->co_pool, id);
     }
     /* handle coroutine memory */
     if (!co) {
         co = (co_t*)malloc(sizeof(co_t));
         co->stack = (char*)malloc(CO_STACK_SIZE);
-        id = env->next_id ++;
+        id = array_size(env->co_pool);
+        co->wait_list = list_create();
+        array_push(env->co_pool, co);
     }
 
     co->entry = (co_entry_t)entry;
@@ -85,23 +84,26 @@ co_t * co_create(void * entry, void * args)
     co->ctx.rsi = (uint64_t)args;
 #endif
 
-    return co;
+    return id;
 }
 
 void co_destroy(co_t * co)
 {
     assert(co && co->stack);
     free(co->stack);
+    free(co->wait_list);
     free(co);
 }
 
-void * co_resume(co_t co)
+void * co_resume(cid_t cid)
 {
+    env_t * env = thread_env();
+    co_t * co = array_get(env->co_pool, cid);
     if (co && co->status == CO_SUSPEND) {
         co->status = CO_RUNNING;
-        co_debug("resume [%d]", id);
-        co->last_id = thread_env()->schedule.running;
-        thread_env()->schedule.running = id;
+        co_debug("resume [%d]", cid);
+        co->last = env->running;
+        env->running = cid;
         return swap_ctx(&co->main, &co->ctx);
     }
     return 0;
@@ -109,15 +111,15 @@ void * co_resume(co_t co)
 
 void co_yield()
 {
-    int id = thread_env()->schedule.running;
-    if (id >= 0 && id < thread_env()->schedule.coroutines.size) {
-        co_t * co = array_get(&thread_env()->schedule.coroutines, id);
+    env_t * env = thread_env();
+    if (env->running != CO_ID_INVALID) {
+        co_t * co = (co_t*)array_get(env->co_pool, env->running);
         if (co && (co->status == CO_RUNNING || co->status == CO_FINISH)) {
             if (co->status != CO_FINISH) {
                 co->status = CO_SUSPEND;
             }
-            co_debug("%s [%d]", co->status == CO_FINISH?"finish,back to":"yield", co->last_id);
-            thread_env()->schedule.running = co->last_id;
+            co_debug("%s [%d]", co->status == CO_FINISH?"finish,back to":"yield", co->last);
+            env->running = co->last;
             swap_ctx(&co->ctx, &co->main);
         }
     }
@@ -126,7 +128,7 @@ void co_yield()
 awaitable_t co_start(void * entry, void * args)
 {
     assert(thread_env()->inited && "co env need to be inited first");
-    int co = co_create(entry, args);
+    cid_t co = co_create(entry, args);
     co_resume(co);
     awaitable_t ret;
     ret.co_id = co;
@@ -137,37 +139,45 @@ awaitable_t co_start(void * entry, void * args)
 void *co_await(awaitable_t awaitable)
 {
     assert (awaitable.env == thread_env());
-    int id = awaitable.co_id;
-    if (id >= 0 && id < thread_env()->schedule.coroutines.size) {
-        co_t * co = array_get(&thread_env()->schedule.coroutines, id);
+    cid_t id = awaitable.co_id;
+    env_t * env = thread_env();
+    if (id != CO_ID_INVALID) {
+        co_t * co = array_get(&env->co_pool, id);
         if (co) {
-            while (co->status != CO_FINISH) {
-                usleep(0);
+            if (co->status == CO_FINISH) {
+                return co->main.rax;
+            } else {
+                list_push_back(co->wait_list, co_running());
             }
-            return co->main.rax;
         }
     }
     return 0;
 }
 
 
+void co_finish()
+{
+    env_t * env = thread_env();
+    for (int i = 0; i < array_size(env->co_pool); ++ i) {
+        co_t * co = (co_t*)array_get(env->co_pool, i);
+        co_destroy(co);
+    }
+    array_destroy(env->co_pool);
+    list_destroy(env->free_list);
+    heap_destroy(&env->timer_mgr);
+    io_destroy(&env->io_mgr);
+}
+
 
 int co_is_all_finish()
 {
-    int done = true;
-    for (int id = 0; id < thread_env()->schedule.coroutines.size; ++ id) {
-        co_t * co = array_get(&thread_env()->schedule.coroutines, id);
-        done = done && (co->status == CO_FINISH);
-        if (!done) {
-            break;
-        }
-    }
-    return done;
+    env_t * env = thread_env();
+    return list_size(env->free_list) == array_size(env->co_pool);
 }
 
 int co_running()
 {
-    return thread_env()->schedule.running;
+    return thread_env()->running;
 }
 
 void co_event_init()
@@ -178,14 +188,11 @@ void co_event_init()
 
 void co_event_loop()
 {
-    while (1) {
+    while (!co_is_all_finish()) {
         long long next_wake = process_timer();
         io_update(next_wake);
-        if (co_is_all_finish()) {
-            break;
-        }
     }
-    heap_destroy(&thread_env()->timer_mgr);
+    co_finish();
 }
 
 
@@ -194,6 +201,5 @@ void * co_main(void * entry, void * args)
     co_init();
     co_start(entry, args);
     co_event_loop();
-    co_finish();
 }
 

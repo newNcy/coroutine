@@ -42,7 +42,6 @@ int main()
         heap_pop(&heap);
     }
     heap_destroy(&heap);
-    */
 
     map_t map;
     map_init(&map, compare, compare_e);
@@ -55,6 +54,7 @@ int main()
     map_remove_key(&map, 7);
     tree_print(map.root);
 
+    */
     /*
     for (int i = 7; i >= 1; -- i) {
         map_remove_key(&map, i);
@@ -62,7 +62,9 @@ int main()
         printf("------------------------------\n");
     }
     */
-    
+
+    list_t * list = list_create();
+    printf("%x %x %d", list_begin(list), list_end(list), list_empty(list));
 }
 
 

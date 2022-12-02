@@ -48,10 +48,10 @@ void io_update(long long timeout)
         map_iterator_t iter = map_find(&io_mgr->wait_map, fd);
         if (map_iterator_valid(&io_mgr->wait_map, iter)) {
             wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
-            if (events & IO_READ) {
+            if (events & IO_READ && wait->read_co != CO_ID_INVALID) {
                 co_resume(wait->read_co);
             }
-            if (events & IO_WRITE) {
+            if (events & IO_WRITE && wait->write_co != CO_ID_INVALID) {
                 co_resume(wait->write_co);
             }
         }

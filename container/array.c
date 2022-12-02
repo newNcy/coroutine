@@ -8,6 +8,13 @@ void array_init(array_t * array)
     array->data = NULL;
 }
 
+array_t * array_create()
+{
+    array_t * array = (array_t*)malloc(sizeof(array_t));
+    array_init(array);
+    return array;
+}
+
 any_t * array_begin(array_t * array)
 {
     return array->data;
@@ -50,7 +57,7 @@ void array_resize(array_t * array, size_t size)
     }
 }
 
-int array_push_back(array_t * array, any_t any)
+int array_push(array_t * array, any_t any)
 {
     if (array->size == array->capacity) {
         array_reserve(array, array->capacity ? array->capacity * 2:10);
@@ -69,7 +76,7 @@ int array_insert(array_t * array, int index, any_t any)
     if (index < 0 || index > array->size) {
         return 0;
     }
-    if (!array_push_back(array, any)) {
+    if (!array_push(array, any)) {
         return 0;
     }
 
@@ -102,4 +109,5 @@ void array_destroy(array_t * array)
         free(array->data);
     }
     array_init(array);
+    free(array);
 }

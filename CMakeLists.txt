@@ -14,6 +14,13 @@ endif()
 # set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-m64 -DLOG_INFO -DLOG_DEBUG")
 
 
+add_library(ctx ctx.h)
+if (UNIX OR MINGW)
+    target_sources(ctx PRIVATE ctx.s)
+else()
+    target_sources(ctx PRIVATE ctx.asm)
+endif()
+
 include_directories(container)
 add_library(container
         container/array.c
@@ -27,13 +34,6 @@ add_library(coroutine
     timer.c
 	)
 
-if (UNIX OR MINGW)
-    target_sources(coroutine PRIVATE context.s)
-else()
-    target_sources(coroutine PRIVATE context.asm)
-endif()
-
-
 add_library(aio aio.c hook.c)
 target_link_libraries(aio container)
 
@@ -44,7 +44,7 @@ else()
 endif()
 
 
-target_link_libraries(coroutine container aio)
+target_link_libraries(coroutine ctx container aio )
 
 if(UNIX)
     target_link_libraries(coroutine dl)
