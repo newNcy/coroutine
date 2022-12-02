@@ -9,8 +9,8 @@ void sleep_for_sec(int sec)
 
 void start()
 {
-    for (int i = 1; i <= 10; ++ i) {
-        co_start(sleep_for_sec, i);
+    for (int i = 1; i <= 5000; ++ i) {
+        co_start(sleep_for_sec, 2);
     }
 }
 

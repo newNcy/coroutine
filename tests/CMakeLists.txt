@@ -2,6 +2,7 @@
 cmake_minimum_required(VERSION 2.8)
 include_directories(..)
 
+set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 add_executable(test_ctx test_ctx.c)
 target_link_libraries(test_ctx coroutine)
 
@@ -16,3 +17,6 @@ target_link_libraries(test_cpp coroutine)
 
 add_executable(test test.c)
 target_link_libraries(test coroutine)
+
+add_executable(test_echo_svr test_tcp_echo_svr.c)
+target_link_libraries(test_echo_svr coroutine)
