@@ -27,7 +27,7 @@ void co_wrap(co_t * co, void * args)
         cid_t id = (cid_t)list_pop_front(co->wait_list);
         co_resume(id);
     }
-
+    list_push_back(thread_env()->free_list, co_running());
     co_yield();
 }
 
@@ -188,7 +188,10 @@ void co_event_init()
 
 void co_event_loop()
 {
+    env_t * env = thread_env();
     while (!co_is_all_finish()) {
+        int a = list_size(env->free_list);
+        int b = array_size(env->co_pool);
         long long next_wake = process_timer();
         io_update(next_wake);
     }

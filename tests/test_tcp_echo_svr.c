@@ -1,16 +1,19 @@
 #include "coroutine.h"
+#include <arpa/inet.h>
 
 
 void serve(int conn)
 {
-    char buff[1024] = {0};
     while(true) {
+        char buff[1024] = {0};
         int rc = arecv(conn, buff, 1024, 0);
-        if (rc == 0) {
+        printf("%d->%s\n", conn, buff);
+        if (rc <= 0) {
             printf("connection[%d] closed\n", conn);
             break;
         }
-        asend(conn, buff, rc, 0);
+        int sc = asend(conn, buff, rc, 0);
+        printf("send %d bytes\n", sc);
     }
     aclose(conn);
 }
@@ -48,12 +51,17 @@ void accpetor(int port)
     printf("%d listen on %d\n", sock, 80);
     while(true) {
         struct sockaddr_in client;
-        int len = sizeof(client);
+        socklen_t len = sizeof(client);
         int conn = aaccept(sock, (struct sockaddr *)&client, &len);
+        if (conn< 0) {
+            perror("accept");
+            continue;
+        }
         unsigned char * ip = (char*)&client.sin_addr.s_addr;
         printf("[%d][%d.%d.%d.%d:%d]\n", conn, ip[0], ip[1], ip[2], ip[3], htons(client.sin_port));
         co_start(serve, conn);
     }
+    aclose(sock);
 }
 
 int main()

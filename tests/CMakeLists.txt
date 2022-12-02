@@ -20,3 +20,6 @@ target_link_libraries(test coroutine)
 
 add_executable(test_echo_svr test_tcp_echo_svr.c)
 target_link_libraries(test_echo_svr coroutine)
+
+add_executable(test_echo_cli test_tcp_echo_cli.c)
+target_link_libraries(test_echo_cli coroutine)

@@ -4,7 +4,7 @@
 typedef struct 
 {
     any_compare_t compare;
-    array_t array;
+    array_t * array;
 } heap_t;
 
 void heap_init(heap_t * heap, any_compare_t compare);

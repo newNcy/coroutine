@@ -50,7 +50,9 @@ int aaccept(int fd, struct sockaddr * addr, socklen_t * len)
     io_wait(fd, IO_READ);
     int sock = __accept(fd, addr, len);
     co_debug("async accept finish");
-    io_add(sock);
+    if (sock >= 0) {
+        io_add(sock);
+    }
     return sock;
 }
 

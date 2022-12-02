@@ -92,6 +92,13 @@ void rb_node_set_red(rb_node_t * node, int is_red)
     node->color = is_red ? RB_COLOR_RED : RB_COLOR_BLACK;
 }
 
+void rb_swap_color(rb_node_t * a, rb_node_t * b)
+{
+	rb_color_t c = a->color;
+	a->color = b->color;
+	b->color = c;
+}
+
 rb_node_t * rb_rotate_left(rb_node_t * node)
 {
     if (!node) {
@@ -108,8 +115,7 @@ rb_node_t * rb_rotate_left(rb_node_t * node)
 
     right->parent = node->parent;
     node->parent = right;
-    rb_node_set_red(node, 1);
-    rb_node_set_red(right, 0);
+    rb_swap_color(right, node);
     return right;
 }
 
@@ -130,8 +136,7 @@ rb_node_t * rb_rotate_right(rb_node_t * node)
     
     left->parent = node->parent;
     node->parent = left;
-    rb_node_set_red(node, 1);
-    rb_node_set_red(left, 0);
+    rb_swap_color(left, node);
     return left;
 }
 
@@ -193,9 +198,15 @@ rb_node_t ** rb_place_of(rb_tree_t * t, rb_node_t * node)
 
 rb_node_t * rb_fixup(rb_node_t * n)
 {
-    if (rb_node_is_red(n->right) && !rb_node_is_red(n->left)) n = rb_rotate_left(n);
-    if (rb_node_is_red(n->left) && rb_node_is_red(n->left->left)) n = rb_rotate_right(n);
-    if (rb_node_is_red(n->left) && rb_node_is_red(n->right)) rb_node_flip_color(n);
+    if (rb_node_is_red(n->right) && !rb_node_is_red(n->left)) {
+        n = rb_rotate_left(n);
+    }
+    if (rb_node_is_red(n->left) && rb_node_is_red(n->left->left)) {
+        n = rb_rotate_right(n);
+    }
+    if (rb_node_is_red(n->left) && rb_node_is_red(n->right)) {
+        rb_node_flip_color(n);
+    }
     return n;
 }
 
@@ -231,12 +242,7 @@ rb_node_t * rb_minimum(rb_node_t * root)
     return root;
 }
 
-void rb_swap_color(rb_node_t * a, rb_node_t * b)
-{
-	rb_color_t c = a->color;
-	a->color = b->color;
-	b->color = c;
-}
+
 
 rb_node_t * rb_brother(rb_node_t * node) 
 {
@@ -467,12 +473,13 @@ rb_node_t * rb_move_red_left(rb_node_t * node)
 
     return node;
 }
+
 rb_node_t * rb_move_red_right(rb_node_t * node)
 {
     rb_node_flip_color(node);
     // 同样这里两边：
     if (node->left && rb_node_is_red(node->left->left)) {
-        node->left = rb_rotate_right(node->left);
+        node = rb_rotate_right(node);
         rb_node_flip_color(node);
     }
 
@@ -522,6 +529,7 @@ rb_node_t * rb_remove(rb_node_t * node, any_t key, any_compare_t less, rb_node_t
             node = rb_move_red_right(node);
         }
 
+        eq = !less(node->key, key);
         if (eq) {
             rb_node_t * min_node = rb_minimum(node->right);
             node->key = min_node->key;

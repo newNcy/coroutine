@@ -43,18 +43,21 @@ int main()
     }
     heap_destroy(&heap);
 
+    */
     map_t map;
     map_init(&map, compare, compare_e);
-    for (int i = 7; i >= 1; -- i) {
-        map_set(&map, i, i);
-        tree_print(map.root);
-        printf("++++++++++++++++++++++++++++\n");
-    }
+    map_set(&map, 5, 4);
+    printf("++++++++++++++++++++++++++++\n");
+    map_set(&map, -1, 4);
+    printf("++++++++++++++++++++++++++++\n");
+    map_set(&map, 6, 4);
+    printf("++++++++++++++++++++++++++++\n");
+    map_set(&map, 4, 4);
+    printf("++++++++++++++++++++++++++++\n");
 
-    map_remove_key(&map, 7);
+    map_remove_key(&map, 6);
     tree_print(map.root);
 
-    */
     /*
     for (int i = 7; i >= 1; -- i) {
         map_remove_key(&map, i);

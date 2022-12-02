@@ -61,6 +61,9 @@ void io_update(long long timeout)
 void io_wait(int fd, int events)
 {
     map_iterator_t iter = map_find(&thread_env()->io_mgr.wait_map, fd);
+    if (!map_iterator_valid(&thread_env()->io_mgr.wait_map, iter)) {
+        return;
+    }
     wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
     int cur = co_running();
     if (events & IO_READ) {
@@ -115,6 +118,12 @@ void io_del(fd)
     map_iterator_t iter = map_find(&thread_env()->io_mgr.wait_map, fd);
     if (map_iterator_valid(&thread_env()->io_mgr.wait_map, iter)) {
         wait_info_t * wait = map_iterator_get(iter);
+        if (wait->read_co != CO_ID_INVALID) {
+            co_resume(wait->read_co);
+        }
+        if (wait->write_co != CO_ID_INVALID) {
+            co_resume(wait->write_co);
+        }
         free(wait);
         map_remove_key(&thread_env()->io_mgr.wait_map, fd);
     }
