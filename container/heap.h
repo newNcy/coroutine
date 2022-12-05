@@ -14,3 +14,4 @@ any_t heap_top(heap_t * heap);
 void heap_pop(heap_t * heap);
 int heap_size(heap_t * heap);
 int heap_empty(heap_t * heap);
+heap_t * heap_create(any_compare_t compare);

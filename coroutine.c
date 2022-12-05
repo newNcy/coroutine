@@ -25,8 +25,8 @@ void co_wrap(co_t * co, void * args)
     co->status = CO_FINISH;
     co->main.rax = ret;
     while (!list_empty(co->wait_list)) {
-        cid_t id = (cid_t)list_pop_front(co->wait_list);
-        co_resume(id);
+        co_t * co = (co_t*)list_pop_front(co->wait_list);
+        co_resume(co);
     }
     list_push_back(thread_env()->free_list, co_running());
     co_yield();
@@ -38,31 +38,29 @@ void co_init()
 	if (!env->inited) {
         env->free_list = list_create();
         env->co_pool = array_create();
-        env->timer_mgr = heap_create();
-		env->running = CO_ID_INVALID;
-		env->last = CO_ID_INVALID;
+        env->timer_mgr = timer_mgr_init();
+		env->running = nullptr;
         env->inited = 1;
 
-        co_event_init();
+        io_init();
         hook_sys_call();
 	}
 }
 
-cid_t co_create(void * entry, void * args)
+co_t * co_create(void * entry, void * args)
 {
     env_t * env = thread_env();
     co_t * co = NULL;
-    int id = CO_ID_INVALID;
     if (!list_empty(env->free_list)) {
-        id = (int)list_pop_front(env->free_list);
-        co = (co_t*)array_get(env->co_pool, id);
+        co = list_pop_front(env->free_list);
     }
     /* handle coroutine memory */
     if (!co) {
         co = (co_t*)malloc(sizeof(co_t));
         co->stack = (char*)malloc(CO_STACK_SIZE);
-        id = array_size(env->co_pool);
         co->wait_list = list_create();
+        co->last = nullptr;
+        co->id = array_size(env->co_pool);
         array_push(env->co_pool, co);
     }
 
@@ -75,8 +73,9 @@ cid_t co_create(void * entry, void * args)
 	// 对齐
     co->ctx.rsp = co->ctx.rbp - 16; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte
 #else 
-    co->ctx.rsp = co->ctx.rbp ; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte 
+    co->ctx.rsp = co->ctx.rbp; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte 
 #endif
+    *(uint64_t*)co->ctx.rsp = 123;
     co->ctx.rip = (uint64_t)co_wrap;
 #ifdef WIN32
     co->ctx.rcx = (uint64_t)co;
@@ -86,7 +85,7 @@ cid_t co_create(void * entry, void * args)
     co->ctx.rsi = (uint64_t)args;
 #endif
 
-    return id;
+    return co;
 }
 
 void co_destroy(co_t * co)
@@ -97,43 +96,33 @@ void co_destroy(co_t * co)
     free(co);
 }
 
-void * co_resume(cid_t cid)
+void * co_resume(co_t * co)
 {
+    assert(co && "invalid coroutine");
     env_t * env = thread_env();
-    co_t * co = array_get(env->co_pool, cid);
-    if (co && co->status == CO_SUSPEND) {
-        co->status = CO_RUNNING;
-        co_debug("resume [%d]", cid);
-        co->last = env->running;
-        env->running = cid;
-        return swap_ctx(&co->main, &co->ctx);
-    }
-    return 0;
+    co_debug("resume [%d]", co->id);
+    co->last = co_running();
+    env->running = co;
+    return swap_ctx(&co->main, &co->ctx);
 }
 
 void co_yield()
 {
     env_t * env = thread_env();
-    if (env->running != CO_ID_INVALID) {
-        co_t * co = (co_t*)array_get(env->co_pool, env->running);
-        if (co && (co->status == CO_RUNNING || co->status == CO_FINISH)) {
-            if (co->status != CO_FINISH) {
-                co->status = CO_SUSPEND;
-            }
-            co_debug("%s [%d]", co->status == CO_FINISH?"finish,back to":"yield", co->last);
-            env->running = co->last;
-            swap_ctx(&co->ctx, &co->main);
-        }
-    }
+    co_t * co = co_running();
+    assert(co && "can not yield in main routine");
+    co_debug("%s [%d]", co->status == CO_FINISH?"finish,back to":"yield", co->last? co->last->id: -1);
+    env->running = co->last;
+    swap_ctx(&co->ctx, &co->main);
 }
 
 awaitable_t co_start(void * entry, void * args)
 {
     assert(thread_env()->inited && "co env need to be inited first");
-    cid_t co = co_create(entry, args);
+    co_t * co = co_create(entry, args);
     co_resume(co);
     awaitable_t ret;
-    ret.co_id = co;
+    ret.co = co;
     ret.env = thread_env();
     return ret;
 }
@@ -141,16 +130,13 @@ awaitable_t co_start(void * entry, void * args)
 void *co_await(awaitable_t awaitable)
 {
     assert (awaitable.env == thread_env());
-    cid_t id = awaitable.co_id;
+    co_t * co = awaitable.co;
     env_t * env = thread_env();
-    if (id != CO_ID_INVALID) {
-        co_t * co = array_get(&env->co_pool, id);
-        if (co) {
-            if (co->status == CO_FINISH) {
-                return co->main.rax;
-            } else {
-                list_push_back(co->wait_list, co_running());
-            }
+    if (co) {
+        if (co->status == CO_FINISH) {
+            return co->main.rax;
+        } else {
+            list_push_back(co->wait_list, co_running());
         }
     }
     return 0;
@@ -174,25 +160,18 @@ void co_finish()
 int co_is_all_finish()
 {
     env_t * env = thread_env();
-    return list_size(env->free_list) == array_size(env->co_pool);
+    return ;
 }
 
-int co_running()
+co_t * co_running()
 {
     return thread_env()->running;
-}
-
-void co_event_init()
-{
-    io_init();
 }
 
 void co_loop()
 {
     env_t * env = thread_env();
-    while (!co_is_all_finish()) {
-        int a = list_size(env->free_list);
-        int b = array_size(env->co_pool);
+    while (list_size(env->free_list) != array_size(env->co_pool)) {
         long long next_wake = process_timer();
         io_update(next_wake);
     }

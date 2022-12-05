@@ -33,16 +33,16 @@ typedef struct co_t
     co_entry_t entry;
     co_status_t status;
     list_t * wait_list;
+    int id;
     char * stack;
-    int last;
+    struct co_t * last;
 }co_t;
 
 
 typedef struct 
 {
     int inited;
-    int running;
-    int last;
+    co_t * running;
     list_t * free_list;
     array_t * co_pool;
     heap_t * timer_mgr;
@@ -53,26 +53,24 @@ typedef struct
 static int CO_ID_INVALID = -1;
 typedef struct 
 {
-    int co_id;
+    co_t * co;
     env_t * env;
 }awaitable_t;
 
 
 void co_init();
 
-cid_t co_create(void *entry, void * args);
-void * co_resume(cid_t id);
+co_t * co_create(void *entry, void * args);
+void * co_resume(co_t * id);
 void co_yield();
 
 awaitable_t co_start(void * entrry, void * args);
 void *co_await(awaitable_t awaitable);
 
-int co_running();
+co_t * co_running();
 void co_finish();
-int co_is_all_finish();
-
-void co_event_init();
 void co_loop();
+
 env_t * thread_env();
 void * co_main(void * entry, void * args);
 

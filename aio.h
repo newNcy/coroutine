@@ -4,6 +4,8 @@
 #include "map.h"
 #include "array.h"
 
+struct co_t;
+typedef struct co_t co_t;
 typedef enum 
 {
     IO_READ = 1,
@@ -19,7 +21,7 @@ typedef struct
 typedef struct
 {
     int events;
-    int co;
+    co_t * co;
 } wait_info_t;
 
 typedef struct io_mgr_t

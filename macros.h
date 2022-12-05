@@ -3,13 +3,13 @@
 #define true 1
 
 #ifdef LOG_DEBUG
-#define co_debug(fmt,...) printf("[debug] [%d] "fmt"\n", co_running(),  ##__VA_ARGS__)
+#define co_debug(fmt,...) printf("[debug] [%d] "fmt"\n", co_running()? co_running()->id : -1,  ##__VA_ARGS__)
 #else
 #define co_debug
 #endif
 
 #ifdef LOG_INFO
-#define co_info(fmt,...) printf("[info] [%d] "fmt"\n", co_running(),  ##__VA_ARGS__)
+#define co_info(fmt,...) printf("[info] [%d] "fmt"\n", co_running()? co_running()->id : -1,  ##__VA_ARGS__)
 #else
 #define co_info
 #endif

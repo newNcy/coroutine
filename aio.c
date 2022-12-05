@@ -91,7 +91,7 @@ void io_add(fd)
         wait = map_iterator_get(iter);
     } else {
         wait = (wait_info_t*)malloc(sizeof(wait_info_t));
-        wait->co = CO_ID_INVALID;
+        wait->co = nullptr;
         wait->events = 0;
         map_set(&thread_env()->io_mgr.wait_map, fd, wait);
     }

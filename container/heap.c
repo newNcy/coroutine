@@ -23,7 +23,7 @@ void heap_destroy(heap_t * heap)
 void print_heap(heap_t * heap)
 {
     for (int i = 0; i  < array_size(heap->array); ++ i) {
-        printf("%d ", array_get(heap->array, i));
+        printf("%p ", array_get(heap->array, i));
     }
     printf("\n");
 }

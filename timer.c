@@ -12,9 +12,14 @@ int timeval_less(struct timeval * lhs, struct timeval * rhs)
     return lhs->tv_sec < rhs->tv_sec || lhs->tv_sec == rhs->tv_sec && lhs->tv_usec < rhs->tv_usec;
 }
 
-int timer_compare(co_timer_t * lhs, co_timer_t * rhs)
+int timer_less(co_timer_t * lhs, co_timer_t * rhs)
 {
     return timeval_less(&lhs->expiration_time, &rhs->expiration_time);
+}
+
+heap_t * timer_mgr_init()
+{
+    return heap_create(timer_less);
 }
 
 int usleep(long long  us)

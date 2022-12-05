@@ -6,13 +6,6 @@
 #include <sys/time.h>
 #endif
 #include "heap.h"
-typedef struct co_timer_t 
-{
-    int co_id;
-	struct timeval expiration_time;
-}co_timer_t;
-
-void timer_mgr_init(heap_t * heap);
 
 
 /*
@@ -71,4 +64,14 @@ static uint64_t ns() {
     return (uint64_t) ((1e9 * now.QuadPart)  / win_frequency.QuadPart);
 #endif
 }
+
+
+typedef struct co_timer_t 
+{
+    int co_id;
+	struct timeval expiration_time;
+}co_timer_t;
+
+heap_t * timer_mgr_init();
+
 

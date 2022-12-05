@@ -77,7 +77,7 @@ int parse_http_request(char * buff, int len, http_request_t * request)
 
     char header[256];
     while (take_header(buff, len, &byte_took, header, 255)) {
-        //printf("%s\n", header);
+        printf("%s\n", header);
     }
     return 1;
 }
@@ -104,15 +104,16 @@ void on_http_request(http_request_t * req)
 
 void async_handle_connection(int conn)
 {
+    co_info("handle %d", conn);
     char buff[1024] = {0};
     int used = 0;
     while(true) {
         int rc = arecv(conn, buff + used, 1024 - used, 0);
         if (rc == 0) {
-            //printf("connection[%d] closed\n", conn);
+            printf("connection[%d] closed\n", conn);
             break;
         }
-
+        printf("%d:read %d bytes\n", conn, rc);
         used += rc;
         if (strstr(buff + used - rc, "\r\n\r\n")) {
             http_request_t request;

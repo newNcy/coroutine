@@ -1,5 +1,6 @@
 #include "array.h"
 #include <stdlib.h>
+#include <string.h>
 
 void array_init(array_t * array)
 {
