@@ -552,7 +552,7 @@ void map_remove_min(map_t * map)
             rb_node_set_red(map->root, 0);
         }
         if (to_remove) {
-            rb_node_destroy(to_remove);
+            free(to_remove);
             map->size--;
         }
     }
@@ -566,7 +566,7 @@ void map_remove_key(map_t * map, any_t key)
         rb_node_set_red(map->root, 0);
     }
     if (to_remove) {
-        rb_node_destroy(to_remove);
+        free(to_remove);
         map->size--;
     }
 }

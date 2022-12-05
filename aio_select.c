@@ -52,7 +52,7 @@ int event_wait(io_mgr_t * io_mgr, long long ms)
     struct timeval tv;
     tv.tv_sec = ms/1000;
     tv.tv_usec = (ms%1000)*1000;
-    int ready = select(state->max_fd + 1, &read_fds, &write_fds, &execpt_fds, &tv);
+    int ready = select(state->max_fd + 1, &read_fds, &write_fds, &execpt_fds, ms == -1? NULL : &tv);
     array_resize(&io_mgr->fired_events, ready);
     if (ready > 0) {
         int j = 0;

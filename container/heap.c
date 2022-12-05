@@ -1,4 +1,5 @@
 #include "heap.h"
+#include <stdlib.h>
 
 void heap_init(heap_t * heap, any_compare_t compare)
 {
@@ -6,9 +7,17 @@ void heap_init(heap_t * heap, any_compare_t compare)
     heap->compare = compare;
 }
 
+heap_t * heap_create(any_compare_t compare)
+{
+    heap_t * heap = (heap_t*)malloc(sizeof(heap_t));
+    heap_init(heap, compare);
+    return heap;
+}
+
 void heap_destroy(heap_t * heap)
 {
     array_destroy(heap->array);
+    free(heap);
 }
 
 void print_heap(heap_t * heap)

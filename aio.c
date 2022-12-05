@@ -48,11 +48,8 @@ void io_update(long long timeout)
         map_iterator_t iter = map_find(&io_mgr->wait_map, fd);
         if (map_iterator_valid(&io_mgr->wait_map, iter)) {
             wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
-            if (events & IO_READ && wait->read_co != CO_ID_INVALID) {
-                co_resume(wait->read_co);
-            }
-            if (events & IO_WRITE && wait->write_co != CO_ID_INVALID) {
-                co_resume(wait->write_co);
+            if ((events & wait->events) == wait->events) {
+                co_resume(wait->co);
             }
         }
     }
@@ -65,18 +62,9 @@ void io_wait(int fd, int events)
         return;
     }
     wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
-    int cur = co_running();
-    if (events & IO_READ) {
-        wait->read_co = cur;
-        if (wait->write_co == cur) {
-            wait->write_co = CO_ID_INVALID;
-        }
-    } else if (events & IO_WRITE) {
-        wait->write_co = cur;
-        if (wait->read_co == cur) {
-            wait->read_co = CO_ID_INVALID;
-        }
-    }
+    wait->events = events;
+    wait->co = co_running();
+    
     co_yield();
 }
 
@@ -103,8 +91,8 @@ void io_add(fd)
         wait = map_iterator_get(iter);
     } else {
         wait = (wait_info_t*)malloc(sizeof(wait_info_t));
-        wait->read_co = CO_ID_INVALID;
-        wait->write_co = CO_ID_INVALID;
+        wait->co = CO_ID_INVALID;
+        wait->events = 0;
         map_set(&thread_env()->io_mgr.wait_map, fd, wait);
     }
     event_add(&thread_env()->io_mgr, fd);
@@ -118,12 +106,6 @@ void io_del(fd)
     map_iterator_t iter = map_find(&thread_env()->io_mgr.wait_map, fd);
     if (map_iterator_valid(&thread_env()->io_mgr.wait_map, iter)) {
         wait_info_t * wait = map_iterator_get(iter);
-        if (wait->read_co != CO_ID_INVALID) {
-            co_resume(wait->read_co);
-        }
-        if (wait->write_co != CO_ID_INVALID) {
-            co_resume(wait->write_co);
-        }
         free(wait);
         map_remove_key(&thread_env()->io_mgr.wait_map, fd);
     }

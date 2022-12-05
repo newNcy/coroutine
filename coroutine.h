@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include "hook.h"
 #include "aio.h"
@@ -32,7 +33,6 @@ typedef struct co_t
     co_entry_t entry;
     co_status_t status;
     list_t * wait_list;
-
     char * stack;
     int last;
 }co_t;
@@ -45,7 +45,7 @@ typedef struct
     int last;
     list_t * free_list;
     array_t * co_pool;
-    heap_t timer_mgr;
+    heap_t * timer_mgr;
     io_mgr_t io_mgr;
 } env_t;
 
@@ -72,7 +72,7 @@ void co_finish();
 int co_is_all_finish();
 
 void co_event_init();
-void co_event_loop();
+void co_loop();
 env_t * thread_env();
 void * co_main(void * entry, void * args);
 

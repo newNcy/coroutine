@@ -1,22 +1,17 @@
 #include "coroutine.h"
 
-
-void foo2()
+void f()
 {
-	printf("hello coroutine 2\n");
+    co_yield();
 }
-
-void * foo(int arg)
-{
-	printf("hello coroutine with arg %d\n", arg);
-    return arg + 24;
-}
-
 
 int main(int argc, char * argv[]) 
 {
-    awaitable_t co = co_start(foo, 12);
-    printf("in main\n");
-    printf("await co %d:%d\n",co.co_id, co_await(co));
+    co_init();
+    int cid = co_create(f, NULL);
+    uint64_t s = ns();
+    printf("resume with %lld ns\n", s);
+    co_resume(cid);
+    uint64_t e = ns();
 	return 0;
 }

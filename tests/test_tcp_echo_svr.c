@@ -1,5 +1,8 @@
 #include "coroutine.h"
-#include <arpa/inet.h>
+#include <errno.h>
+#ifdef WIN32
+typedef unsigned socklen_t;
+#endif
 
 
 void serve(int conn)
@@ -7,9 +10,13 @@ void serve(int conn)
     while(true) {
         char buff[1024] = {0};
         int rc = arecv(conn, buff, 1024, 0);
-        printf("%d->%s\n", conn, buff);
+        printf("%d->%d:%s\n", conn, rc, buff);
         if (rc <= 0) {
             printf("connection[%d] closed\n", conn);
+#ifdef WIN32
+            int e = WSAGetLastError();
+            printf("wsa error %d, errno:%d\n", e, errno);
+#endif
             break;
         }
         int sc = asend(conn, buff, rc, 0);

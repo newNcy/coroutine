@@ -18,8 +18,8 @@ typedef struct
 
 typedef struct
 {
-    int read_co;
-    int write_co;
+    int events;
+    int co;
 } wait_info_t;
 
 typedef struct io_mgr_t

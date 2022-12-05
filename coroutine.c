@@ -6,7 +6,8 @@
 #include "heap.h"
 #include "list.h"
 #include "macros.h"
-thread_local env_t env;
+
+thread_local env_t env = {0, -1, -1, NULL, NULL};
 
 env_t * thread_env()
 {
@@ -37,6 +38,7 @@ void co_init()
 	if (!env->inited) {
         env->free_list = list_create();
         env->co_pool = array_create();
+        env->timer_mgr = heap_create();
 		env->running = CO_ID_INVALID;
 		env->last = CO_ID_INVALID;
         env->inited = 1;
@@ -164,7 +166,7 @@ void co_finish()
     }
     array_destroy(env->co_pool);
     list_destroy(env->free_list);
-    heap_destroy(&env->timer_mgr);
+    heap_destroy(env->timer_mgr);
     io_destroy(&env->io_mgr);
 }
 
@@ -182,11 +184,10 @@ int co_running()
 
 void co_event_init()
 {
-    timer_mgr_init(&thread_env()->timer_mgr);
     io_init();
 }
 
-void co_event_loop()
+void co_loop()
 {
     env_t * env = thread_env();
     while (!co_is_all_finish()) {
@@ -203,6 +204,6 @@ void * co_main(void * entry, void * args)
 {
     co_init();
     co_start(entry, args);
-    co_event_loop();
+    co_loop();
 }
 

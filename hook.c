@@ -5,8 +5,9 @@
 #include "macros.h"
 #ifdef WIN32
 #include <winsock2.h>
-//#include <ws2tcpip.h>
+#include <ws2tcpip.h>
 #else
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <dlfcn.h>
 #include <unistd.h>
@@ -16,7 +17,6 @@
 #include <errno.h>
 
 
-typedef unsigned socklen_t;
 /////////////hook///////////////
 
 typedef int (*socket_func_t)(int domain, int type, int protocol);
@@ -51,6 +51,7 @@ int aaccept(int fd, struct sockaddr * addr, socklen_t * len)
     int sock = __accept(fd, addr, len);
     co_debug("async accept finish");
     if (sock >= 0) {
+        io_setnoblocking(sock);
         io_add(sock);
     }
     return sock;
@@ -59,12 +60,23 @@ int aaccept(int fd, struct sockaddr * addr, socklen_t * len)
 int aconnect(int fd, const struct sockaddr * addr, socklen_t len)
 {
 	int ret = __connect(fd, addr, len);
+    int incomplete = 0;
 	if (ret == 0) {
 		io_add(fd);
 		return ret;
-	} else if (errno !=  EINPROGRESS) {
-		return ret;
-	}
+	} else if (errno ==  EINPROGRESS) {
+        incomplete = 1;
+	} 
+
+#ifdef WIN32
+    if (WSAGetLastError() == 10035) {
+        incomplete = 1;
+    }
+#endif
+
+    if (!incomplete) {
+        return ret;
+    }
 	io_wait(fd, IO_WRITE);
 	int error = 0;
 	len = sizeof(error);
