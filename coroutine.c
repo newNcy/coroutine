@@ -168,6 +168,12 @@ co_t * co_running()
     return thread_env()->running;
 }
 
+int co_count()
+{
+    env_t * env = thread_env();
+    return array_size(env->co_pool) - list_size(env->free_list);
+}
+
 void co_loop()
 {
     env_t * env = thread_env();

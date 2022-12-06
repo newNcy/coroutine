@@ -22,13 +22,13 @@ heap_t * timer_mgr_init()
     return heap_create(timer_less);
 }
 
-int usleep(long long  us)
+int usleep(long long us)
 {
     if (us < 0) {
         return 0;
     }
     co_timer_t * timer = (co_timer_t*)malloc(sizeof(co_timer_t));
-    timer->co_id = co_running();
+    timer->co = co_running();
     gettimeofday(&timer->expiration_time, NULL);
     timer->expiration_time.tv_sec += us/1000000;
     timer->expiration_time.tv_usec += us%1000000;
@@ -39,7 +39,7 @@ int usleep(long long  us)
 
 unsigned int sleep(unsigned int s)
 {
-    return usleep(s * 1000 * 1000);
+    return usleep(s * 1000);
 }
 
 #ifdef WIN32
@@ -74,11 +74,10 @@ long long process_timer()
         if (timeval_less(&now, &timer->expiration_time)) {
             return (timer->expiration_time.tv_sec - now.tv_sec) * 1000 + (timer->expiration_time.tv_usec - now.tv_usec)/1000;
         } else {
-            int id = timer->co_id;
+            co_t * co = timer->co;
             free(timer);
-            heap_pop(&thread_env()->timer_mgr);
-
-            co_resume(id);
+            heap_pop(thread_env()->timer_mgr);
+            co_resume(co);
         }
     }
     return -1;

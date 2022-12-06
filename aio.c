@@ -13,6 +13,7 @@ void io_init()
     env_t * env = thread_env();
     event_init(&env->io_mgr);
     map_init(&thread_env()->io_mgr.wait_map, less, equals);
+    env->io_mgr.dead = list_create();
 }
 void io_destroy()
 {
@@ -39,7 +40,7 @@ void io_update(long long timeout)
 
     io_mgr_t * io_mgr = &thread_env()->io_mgr;
 
-    int num_events = event_wait(io_mgr);
+    int num_events = event_wait(io_mgr, timeout);
     for (int i = 0; i < num_events; ++ i) {
         int fd = 0;
         int events = 0;
@@ -48,10 +49,30 @@ void io_update(long long timeout)
         map_iterator_t iter = map_find(&io_mgr->wait_map, fd);
         if (map_iterator_valid(&io_mgr->wait_map, iter)) {
             wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
-            if ((events & wait->events) == wait->events) {
-                co_resume(wait->co);
+            if ((events & IO_READ) && !list_empty(wait->reader)) {
+                co_t * co = list_pop_front(wait->reader);
+                co_resume(co);
+            }
+            if ((events & IO_WRITE) && !list_empty(wait->writer)) {
+                co_t * co = list_pop_front(wait->writer);
+                co_resume(co);
             }
         }
+    }
+
+    while (!list_empty(io_mgr->dead)) {
+        wait_info_t * wait = (wait_info_t*)list_pop_front(io_mgr->dead);
+        while (!list_empty(wait->reader)) {
+            co_t * co = list_pop_front(wait->reader);
+            co_resume(co);
+        }
+        while (!list_empty(wait->writer)) {
+            co_t * co = list_pop_front(wait->writer);
+            co_resume(co);
+        }
+        list_destroy(wait->reader);
+        list_destroy(wait->writer);
+        free(wait);
     }
 }
 
@@ -62,8 +83,12 @@ void io_wait(int fd, int events)
         return;
     }
     wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
-    wait->events = events;
-    wait->co = co_running();
+    if (events & IO_READ) {
+        list_push_back(wait->reader, co_running());
+    } 
+    if (events & IO_WRITE) {
+        list_push_back(wait->writer, co_running());
+    }
     
     co_yield();
 }
@@ -85,15 +110,16 @@ int io_setnoblocking(int fd)
 
 void io_add(fd)
 {
-    map_iterator_t iter = map_find(&thread_env()->io_mgr.wait_map, fd);
+    io_mgr_t * io_mgr = &thread_env()->io_mgr;
+    map_iterator_t iter = map_find(&io_mgr->wait_map, fd);
     wait_info_t * wait = nullptr;
-    if (map_iterator_valid(&thread_env()->io_mgr.wait_map, iter)) {
+    if (map_iterator_valid(&io_mgr->wait_map, iter)) {
         wait = map_iterator_get(iter);
     } else {
         wait = (wait_info_t*)malloc(sizeof(wait_info_t));
-        wait->co = nullptr;
-        wait->events = 0;
-        map_set(&thread_env()->io_mgr.wait_map, fd, wait);
+        wait->reader = list_create();
+        wait->writer = list_create();
+        map_set(&io_mgr->wait_map, fd, wait);
     }
     event_add(&thread_env()->io_mgr, fd);
     co_info("%d add to io set", fd);
@@ -101,12 +127,13 @@ void io_add(fd)
 
 void io_del(fd)
 {
+    io_mgr_t * io_mgr = &thread_env()->io_mgr;
     co_info("%d remove from io set", fd);
-    event_del(&thread_env()->io_mgr, fd);
-    map_iterator_t iter = map_find(&thread_env()->io_mgr.wait_map, fd);
-    if (map_iterator_valid(&thread_env()->io_mgr.wait_map, iter)) {
+    event_del(io_mgr, fd);
+    map_iterator_t iter = map_find(&io_mgr->wait_map, fd);
+    if (map_iterator_valid(&io_mgr->wait_map, iter)) {
         wait_info_t * wait = map_iterator_get(iter);
-        free(wait);
+        list_push_back(io_mgr->dead, wait);
         map_remove_key(&thread_env()->io_mgr.wait_map, fd);
     }
 }

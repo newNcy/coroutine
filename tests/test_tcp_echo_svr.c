@@ -5,8 +5,11 @@ typedef unsigned socklen_t;
 #endif
 
 
+int connection_count = 0;
+
 void serve(int conn)
 {
+    connection_count ++;
     while(true) {
         char buff[1024] = {0};
         int rc = arecv(conn, buff, 1024, 0);
@@ -22,7 +25,17 @@ void serve(int conn)
         int sc = asend(conn, buff, rc, 0);
         printf("send %d bytes\n", sc);
     }
+    connection_count --;
     aclose(conn);
+}
+
+void show_connection_count()
+{
+    for (;;) {
+        printf("connection_count:%d\n", connection_count);
+        fflush(stdout);
+        sleep(1000);
+    }
 }
 
 void accpetor(int port)
@@ -36,6 +49,7 @@ void accpetor(int port)
     }
 #endif
 
+    co_start(show_connection_count,0);
     int sock = asocket(AF_INET, SOCK_STREAM, 0);
 
     struct sockaddr_in bind_info; 

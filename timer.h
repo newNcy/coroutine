@@ -66,9 +66,10 @@ static uint64_t ns() {
 }
 
 
+typedef struct co_t co_t;
 typedef struct co_timer_t 
 {
-    int co_id;
+    co_t * co;
 	struct timeval expiration_time;
 }co_timer_t;
 
