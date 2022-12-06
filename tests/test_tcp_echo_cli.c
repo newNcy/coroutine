@@ -3,6 +3,8 @@
 #include <errno.h>
 #ifdef WIN32
 typedef unsigned socklen_t;
+#else
+#include <netinet/in.h>
 #endif
 
 typedef struct connection_t

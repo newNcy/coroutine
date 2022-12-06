@@ -112,6 +112,9 @@ void async_handle_connection(int conn)
         if (rc == 0) {
             printf("connection[%d] closed\n", conn);
             break;
+        } else if (rc < 0) {
+            perror("connection error");
+            break;
         }
         printf("%d:read %d bytes\n", conn, rc);
         used += rc;
