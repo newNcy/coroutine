@@ -69,12 +69,8 @@ co_t * co_create(void * entry, void * args)
 
     co->ctx.rbp = (uint64_t)(co->stack + CO_STACK_SIZE);
 
-#if defined(__APPLE__)
-	// 对齐
-    co->ctx.rsp = co->ctx.rbp - 16; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte
-#else 
-    co->ctx.rsp = co->ctx.rbp - 8; //call 指令会把返回地址push到栈上，ret时弹出并跳转过去，swap_ctx里将co_bootstrap地址放到协程栈顶然后ret,所以预分配8byte 
-#endif
+    // rsp增长16个字节，保证堆栈对16。这个空间用来放返回地址，在swapctx执行到ret时返回正确的地方
+    co->ctx.rsp = co->ctx.rbp - 16; 
     co->ctx.rip = (uint64_t)co_wrap;
 #ifdef WIN32
     co->ctx.rcx = (uint64_t)co;

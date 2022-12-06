@@ -176,12 +176,17 @@ void async_main()
     printf("%d listen on %d\n", sock, 80);
     while(true) {
         struct sockaddr_in client;
-        int len = sizeof(client);
+        socklen_t len = sizeof(client);
         int conn = aaccept(sock, (struct sockaddr *)&client, &len);
+        if (conn < 0) {
+            perror("accept");
+            break;
+        }
         unsigned char * ip = (char*)&client.sin_addr.s_addr;
         printf("[%d.%d.%d.%d:%d]\n", ip[0], ip[1], ip[2], ip[3], htons(client.sin_port));
         co_start(async_handle_connection, conn);
     }
+    aclose(sock);
 }
 
 

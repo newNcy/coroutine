@@ -45,7 +45,7 @@ swap_ctx:
     movq %rbp, 8(%rdi)
     movq %rax, 16(%rdi)
     movq %rbx, 56(%rdi)
-    movq %r12, 74(%rdi)
+    movq %r12, 64(%rdi)
     movq %r13, 72(%rdi)
     movq %r14, 80(%rdi)
     movq %r15, 88(%rdi)
