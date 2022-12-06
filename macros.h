@@ -1,5 +1,5 @@
 #pragma once
-#define CO_STACK_SIZE 1024 * 128
+#define CO_STACK_SIZE 1024 * 1024 * 2
 #define true 1
 
 #ifdef LOG_DEBUG

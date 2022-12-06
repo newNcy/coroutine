@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "coroutine.h"
 #ifdef WIN32
+typedef unsigned socklen_t;
 #include <winsock2.h>
 #else
 #include <arpa/inet.h>
@@ -137,14 +138,14 @@ void heartbeat(int sec)
 {
     while (true) {
         printf("loop...\n");
-        sleep(sec);
+        sleep(sec * 1000);
     }
 }
 
 void async_main()
 {
-
-    //co_start(heartbeat, 3);
+    printf("loop...\n");
+    co_start(heartbeat, 3);
 #ifdef WIN32
     WORD word = MAKEWORD(2, 2);
     WSADATA wdata;
@@ -193,5 +194,6 @@ void async_main()
 int main()
 {
     co_main(async_main, 0);
+    fflush(stdout);
     return 0;
 }
