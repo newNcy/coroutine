@@ -5,11 +5,7 @@
 ## 简单使用,不使用调度器
 
 ```c
-/* 
- *最简单的例子 tests/test.c
- * 两次创建协程，第一个等待协程执行完毕获取返回值
- * 第二次不等待直接往下执行
- */
+
 #include "coroutine.h"
 
 void  func()
@@ -36,11 +32,7 @@ int main()
 
 ## 使用调度器
 ```c
-/* 
- *最简单的例子 tests/test.c
- * 两次创建协程，第一个等待协程执行完毕获取返回值
- * 第二次不等待直接往下执行
- */
+
 #include "coroutine.h"
 
 void  func()
