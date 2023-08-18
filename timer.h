@@ -30,7 +30,7 @@
 #  include <windows.h>
 #endif
 static uint64_t ns() {
-  static uint64_t is_init = 0;
+    static uint64_t is_init = 0;
 #if defined(__APPLE__)
     static mach_timebase_info_data_t info;
     if (0 == is_init) {
@@ -70,7 +70,7 @@ typedef struct co_t co_t;
 typedef struct co_timer_t 
 {
     co_t * co;
-	struct timeval expiration_time;
+    uint64_t ns;
 }co_timer_t;
 
 heap_t * timer_mgr_init();

@@ -139,6 +139,7 @@ void heartbeat(int sec)
     while (true) {
         printf("loop...\n");
         sleep(sec * 1000);
+        fflush(stdout);
     }
 }
 
@@ -194,6 +195,5 @@ void async_main()
 int main()
 {
     co_main(async_main, 0);
-    fflush(stdout);
     return 0;
 }

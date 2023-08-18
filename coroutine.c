@@ -14,10 +14,6 @@ env_t * thread_env()
     return &env;
 }
 
-
-/*
- * 需要协程函数执行完的时候改变状态
- */
 void co_wrap(co_t * co, void * args)
 {
     void * ret = co->entry(args);
@@ -69,7 +65,6 @@ co_t * co_create(void * entry, void * args)
 
     co->ctx.rbp = (uint64_t)(co->stack + CO_STACK_SIZE);
 
-    // rsp增长16个字节，保证堆栈对16。这个空间用来放返回地址，在swapctx执行到ret时返回正确的地方
     co->ctx.rsp = co->ctx.rbp - 16; 
     co->ctx.rip = (uint64_t)co_wrap;
 #ifdef WIN32
