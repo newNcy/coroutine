@@ -11,26 +11,25 @@
 ```c
 
 #include "coroutine.h"
+#include <stdio.h>
 
-void  func()
+uint64_t s = 0;
+void f(int i)
 {
-    printf("func 1\n");
+    int local = i + 3;
+    printf("i: %d local:%d\n", i, local);
     co_yield();
-    printf("func 2\n");
+    printf("i: %d local:%d\n", i, local);
 }
 
-int main()
+int main(int argc, char * argv[])
 {
-    // 初始化本线程的环境
-    co_init();
-
-    printf("main 1\n");
-    co_t * co = co_create(func, NULL);
+    co_t * co = co_create(f, 3);
+    s = ns();
     co_resume(co);
-    printf("main 2\n");
+    printf("resume with %lld ns\n", ns() -s);
     co_resume(co);
-    // 释放本线程环境
-    co_finish();
+	return 0;
 }
 ```
 

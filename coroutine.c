@@ -47,6 +47,9 @@ void co_init()
 co_t * co_create(void * entry, void * args)
 {
     env_t * env = thread_env();
+    if (!env->inited) {
+        co_init();
+    }
     co_t * co = NULL;
     if (!list_empty(env->free_list)) {
         co = list_pop_front(env->free_list);
