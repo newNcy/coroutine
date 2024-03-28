@@ -18,7 +18,6 @@ extern "C" {
 typedef enum 
 {
     CO_SUSPEND,
-    CO_RUNNING,
     CO_FINISH
 }co_status_t;
 

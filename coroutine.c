@@ -90,6 +90,7 @@ void co_destroy(co_t * co)
 void * co_resume(co_t * co)
 {
     assert(co && "invalid coroutine");
+    assert(co->status == CO_SUSPEND  && "coroutine must suspended");
     env_t * env = thread_env();
     co_debug("resume [%d]", co->id);
     co->last = co_running();
