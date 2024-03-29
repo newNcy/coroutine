@@ -97,10 +97,6 @@ void rb_node_destroy(rb_node_t * node)
     free(node);
 }
 
-void rb_node_set_red(rb_node_t * node, int is_red)
-{
-    node->color = is_red ? RB_COLOR_RED : RB_COLOR_BLACK;
-}
 
 void rb_swap_color(rb_node_t * a, rb_node_t * b)
 {
@@ -153,9 +149,9 @@ rb_node_t * rb_rotate_right(rb_node_t * node)
 
 void rb_node_flip_color(rb_node_t * n)
 {
-    if (n) rb_node_set_red(n, !rb_node_is_red(n));
-    if (n->left) rb_node_set_red(n->left, !rb_node_is_red(n->left));
-    if (n->right) rb_node_set_red(n->right, !rb_node_is_red(n->right));
+    if (n) n->color ^= 1;
+    if (n->left) n->left->color ^= 1;
+    if (n->right) n->right->color ^= 1;
 }
 
 void rb_node_init(rb_node_t * node)
@@ -165,7 +161,7 @@ void rb_node_init(rb_node_t * node)
     node->right = nullptr;
     node->key = nullptr;
     node->value = nullptr;
-    rb_node_set_red(node, 1);
+    node->color = RB_COLOR_RED;
 }
 
 rb_node_t * rb_node_create(any_t key, any_t value)
@@ -248,11 +244,11 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
     map_iterator_t ret;
     int has_new_node = 1;
     map->root = rb_put(map->root, key, value, map->less, &ret, &has_new_node);
-    rb_node_set_red(map->root, 0);
+    map->root->color = RB_COLOR_BLACK;
     if (has_new_node) {
         map->size++;
     }
-    tree_print(map->root);
+    //tree_print(map->root);
     return ret;
 }
 
@@ -432,7 +428,7 @@ void map_remove_min(map_t * map)
         rb_node_t* to_remove = nullptr;
         map->root = rb_remove_min(map->root,&to_remove);
         if (map->root) {
-            rb_node_set_red(map->root, 0);
+            map->root->color = RB_COLOR_BLACK;
         }
         if (to_remove) {
             free(to_remove);
@@ -446,13 +442,12 @@ void map_remove_key(map_t * map, any_t key)
     rb_node_t* to_remove = nullptr;
     map->root = rb_remove(map->root, key, map->less, map->equals,  &to_remove);
     if (map->root) {
-        rb_node_set_red(map->root, 0);
+        map->root->color = RB_COLOR_BLACK;
     }
-    assert(to_remove);
     if (to_remove) {
         free(to_remove);
         map->size--;
     }
-    tree_print(map->root);
+    //tree_print(map->root);
 }
 

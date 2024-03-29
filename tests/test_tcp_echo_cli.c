@@ -96,5 +96,5 @@ void connector(int count)
 
 int main()
 {
-    co_main(connector, (void*)100);
+    co_main(connector, (void*)500);
 }
