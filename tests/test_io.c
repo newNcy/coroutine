@@ -100,7 +100,7 @@ void on_http_request(http_request_t * req)
 
     char response_buff[1024] = {0};
     sprintf(response_buff, template, strlen(content), content);
-    asend(req->conn, response_buff, strlen(response_buff), 0);
+    co_send(req->conn, response_buff, strlen(response_buff), 0);
 }
 
 void async_handle_connection(int conn)
@@ -109,7 +109,7 @@ void async_handle_connection(int conn)
     char buff[1024] = {0};
     int used = 0;
     while(true) {
-        int rc = arecv(conn, buff + used, 1024 - used, 0);
+        int rc = co_recv(conn, buff + used, 1024 - used, 0);
         if (rc == 0) {
             printf("connection[%d] closed\n", conn);
             break;
@@ -131,22 +131,22 @@ void async_handle_connection(int conn)
             break;
         }
     }
-    aclose(conn);
+    co_close(conn);
 }
 
 void heartbeat(int sec)
 {
+    int idx = 0;
     while (true) {
-        printf("loop...\n");
-        sleep(sec * 1000);
+        printf("heartbeat %d\n", idx ++);
+        co_sleep_ms(sec * 1000);
         fflush(stdout);
     }
 }
 
 void async_main()
 {
-    printf("loop...\n");
-    co_start(heartbeat, 3);
+    co_start(heartbeat, (void*)3);
 #ifdef WIN32
     WORD word = MAKEWORD(2, 2);
     WSADATA wdata;
@@ -156,7 +156,7 @@ void async_main()
     }
 #endif
 
-    int sock = asocket(AF_INET, SOCK_STREAM, 0);
+    int sock = co_socket(AF_INET, SOCK_STREAM, 0);
 
     struct sockaddr_in bind_info; 
     bind_info.sin_family = AF_INET;
@@ -169,26 +169,27 @@ void async_main()
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &dummy, sizeof(dummy));
     if (err) {
         printf("bind failed\n");
-        aclose(sock);
+        co_close(sock);
         return;
     }
 
     err = listen(sock, 1024);
     
     printf("%d listen on %d\n", sock, 80);
+    fflush(stdout);
     while(true) {
         struct sockaddr_in client;
         socklen_t len = sizeof(client);
-        int conn = aaccept(sock, (struct sockaddr *)&client, &len);
+        int conn = co_accept(sock, (struct sockaddr *)&client, &len);
         if (conn < 0) {
             perror("accept");
             break;
         }
         unsigned char * ip = (char*)&client.sin_addr.s_addr;
         printf("[%d.%d.%d.%d:%d]\n", ip[0], ip[1], ip[2], ip[3], htons(client.sin_port));
-        co_start(async_handle_connection, conn);
+        co_start(async_handle_connection, (void*)conn);
     }
-    aclose(sock);
+    co_close(sock);
 }
 
 

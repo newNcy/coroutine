@@ -74,5 +74,9 @@ typedef struct co_timer_t
 }co_timer_t;
 
 heap_t * timer_mgr_init();
-
+int co_sleep_ns(long long us);
+static inline unsigned int co_sleep_ms(unsigned int ms)
+{
+    return co_sleep_ns(ms * 1000 * 1000);
+}
 

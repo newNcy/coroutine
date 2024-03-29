@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 2.8)
 project(coroutine)
 
 enable_language(C)
+add_compile_options(-Wreturn)
 
 if (UNIX OR MINGW)
     enable_language(ASM)

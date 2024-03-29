@@ -182,12 +182,21 @@ void map_init(map_t * map, any_compare_t less, any_compare_t equals)
     map->size = 0;
 }
 
+map_t * map_create(any_compare_t user_less, any_compare_t user_equals)
+{
+    if (!user_less) user_less = less;
+    if (!user_equals) user_equals = equals;
+    map_t * map = (map_t*)malloc(sizeof(map_t));
+    map_init(map, user_less, user_equals);
+    return map;
+}
+
 
 void map_destroy(map_t * map)
 {
     rb_node_destroy(map->root);
-
     map_init(map, nullptr, nullptr);
+    free(map);
 }
 
 rb_node_t ** rb_place_of(rb_tree_t * t, rb_node_t * node)
@@ -233,6 +242,7 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
     map->root = rb_put(map->root, key, value, map->less, &ret);
     rb_node_set_red(map->root, 0);
     map->size++;
+    tree_print(map->root);
     return ret;
 }
 
@@ -244,8 +254,6 @@ rb_node_t * rb_minimum(rb_node_t * root)
     return root;
 }
 
-
-
 rb_node_t * rb_brother(rb_node_t * node) 
 {
 	if (!node || !node->parent) {
@@ -254,141 +262,7 @@ rb_node_t * rb_brother(rb_node_t * node)
 	return node == node->parent->left ? node->parent->right : node->parent->left;
 }
 
-void rb_transplant(rb_tree_t * tree, rb_node_t * u, rb_node_t * v)
-{
-    if (tree->root == u) {
-        tree->root = v;
-    } else {
-		if (u == u->parent->left) {
-			u->parent->left = v;
-		} else {
-			u->parent->right = v;
-		}
-	}
-    if (v) {
-        v->parent = u->parent;
-    }
-}
-
-void map_erase_iter(map_t * map, map_iterator_t iter)
-{
-    if (!iter) {
-        return;
-    }
-
-    if (iter == map->root && map->size == 1) {
-        map->root = nullptr;
-        map->size --;
-        free(iter);
-        return;
-    }
-
-    rb_node_t * y = iter;
-    rb_color_t y_origin_color = iter->color;
-    rb_node_t * x = nullptr;
-
-    rb_node_t null_holder;
-    null_holder.left = nullptr;
-    null_holder.right = nullptr;
-    rb_node_set_red(&null_holder, 0);
-
-    if (!iter->left) {
-        x = iter->right;
-        rb_transplant(map, iter, iter->right);
-    } else if (!iter->right) {
-        x = iter->left;
-        rb_transplant(map, iter, iter->left);
-    } else {
-        y = rb_minimum(iter->right);
-        y_origin_color = y->color;
-        if (!y->right) {
-            y->right = &null_holder; 
-            null_holder.parent = y;
-        }
-        x = y->right;
-        if (y->parent != iter) {
-            rb_transplant(map, y, y->right);
-            y->right = iter->right;
-            y->right->parent = y;
-        }
-
-        rb_transplant(map, iter, y);
-        y->left = iter->left;
-        y->left->parent = y;
-        y->color = iter->color;
-    }
-
-	/* rb-delete-fixup */
-    if (!y_origin_color == RB_COLOR_BLACK) {
-        while (x != map->root &&  x->color == RB_COLOR_BLACK) {
-			int left = x == x->parent->left;
-			rb_node_t * p = x->parent;
-			rb_node_t * w = rb_brother(x);
-			rb_node_t ** parent_pos = rb_place_of(map, p);
-			if (w->color == RB_COLOR_RED) {
-				rb_swap_color(p, w);		
-				if (left) {
-					*parent_pos = rb_rotate_left(p);
-				} else {
-					*parent_pos = rb_rotate_right(p);
-				}
-				parent_pos = rb_place_of(map, p);
-				w = rb_brother(x);
-			}
-
-			if (w->color == RB_COLOR_BLACK) {
-				if (w->left->color == RB_COLOR_BLACK && w->right->color == RB_COLOR_BLACK) {
-					w->color = RB_COLOR_RED;
-                    if (x == &null_holder) {
-                        *rb_place_of(map, x) = nullptr;
-                    }
-					x = p;
-				} else {
-					if (left) {
-						if (w->right->color == RB_COLOR_BLACK) {
-							rb_swap_color(w, w->left);
-							p->right = rb_rotate_right(w);
-							w = p->right;
-						} 
-
-						w->color = p->color ;
-						p->color = w->right->color = RB_COLOR_BLACK;
-						*parent_pos = rb_rotate_left(p);
-					} else {
-						if (w->left->color == RB_COLOR_BLACK) {
-							rb_swap_color(w, w->right);
-							p->left= rb_rotate_left(w);
-							w = p->left;
-						}
-						
-						w->color = p->color ;
-						p->color = w->right->color = RB_COLOR_BLACK;
-						*parent_pos = rb_rotate_right(p);
-					}
-                    if (x == &null_holder) {
-                        *rb_place_of(map, x) = nullptr;
-                    }
-					x = map->root;
-				}
-			}
-        }
-		x->color = RB_COLOR_BLACK;
-    }
-    map->size --;
-	free(iter);
-}
-
-void map_erase_key(map_t * map, any_t key)
-{
-    if (!map || !map->less || !map->equals) {
-        return;
-    }
-
-    map_iterator_t iter = map_find(map, key);
-    map_erase_iter(map, iter);
-}
-
-map_iterator_t map_find(map_t * map, any_t key)
+map_iterator_t map_get(map_t * map, any_t key)
 {
     if (!map || !map->less || !map->equals) {
         return nullptr;
@@ -436,7 +310,7 @@ map_iterator_t map_end(map_t *map)
     return nullptr;
 }
 
-map_iterator_t iter_next(map_iterator_t iter)
+map_iterator_t map_next(map_iterator_t iter)
 {
     if (!iter) {
         return nullptr;
@@ -571,5 +445,6 @@ void map_remove_key(map_t * map, any_t key)
         free(to_remove);
         map->size--;
     }
+    tree_print(map->root);
 }
 

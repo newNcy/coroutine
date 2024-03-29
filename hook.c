@@ -3,18 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "macros.h"
-#ifdef WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <dlfcn.h>
-#include <unistd.h>
-#endif
-#include <fcntl.h>
-#include <sys/types.h>
-#include <errno.h>
+
 extern void io_setnoblocking(int fd);
 
 /////////////hook///////////////
@@ -35,34 +24,38 @@ static close_func_t __close = NULL;
 
 //todo open read write ...
 
+static inline aio_t * get_thread_aio()
+{
+    return thread_env()->aio;
+}
 
-int asocket(int domain, int type, int protocal)
+int co_socket(int domain, int type, int protocal)
 {
     int sock = __socket(domain, type, protocal); 
 	io_setnoblocking(sock);
-    io_add(sock);
+    aio_add(get_thread_aio(), sock);
     return sock;
 }
 
-int aaccept(int fd, struct sockaddr * addr, socklen_t * len)
+int co_accept(int fd, struct sockaddr * addr, socklen_t * len)
 {
     co_debug("async accept");
-    io_wait(fd, IO_READ);
+    aio_wait(get_thread_aio(), fd, IO_READ);
     int sock = __accept(fd, addr, len);
     co_debug("async accept finish");
     if (sock >= 0) {
         io_setnoblocking(sock);
-        io_add(sock);
+        aio_add(get_thread_aio(), sock);
     }
     return sock;
 }
 
-int aconnect(int fd, const struct sockaddr * addr, socklen_t len)
+int co_connect(int fd, const struct sockaddr * addr, socklen_t len)
 {
 	int ret = __connect(fd, addr, len);
     int incomplete = 0;
 	if (ret == 0) {
-		io_add(fd);
+		aio_add(get_thread_aio(), fd);
 		return ret;
 	} else if (errno ==  EINPROGRESS) {
         incomplete = 1;
@@ -77,7 +70,7 @@ int aconnect(int fd, const struct sockaddr * addr, socklen_t len)
     if (!incomplete) {
         return ret;
     }
-	io_wait(fd, IO_WRITE);
+	aio_wait(get_thread_aio(), fd, IO_WRITE);
 	int error = 0;
 	len = sizeof(error);
 #ifndef WIN32
@@ -89,25 +82,25 @@ int aconnect(int fd, const struct sockaddr * addr, socklen_t len)
 }
 
 
-size_t arecv(int fd, void * buff, size_t len, int flags) 
+size_t co_recv(int fd, void * buff, size_t len, int flags) 
 {
     co_debug("async recv");
-    io_wait(fd, IO_READ);
+    aio_wait(get_thread_aio(), fd, IO_READ);
     co_debug("async recv finish");
     return __recv(fd, buff, len, flags);
 }
 
-size_t asend(int fd, const void * buff, size_t len, int flags)
+size_t co_send(int fd, const void * buff, size_t len, int flags)
 {
     co_debug("async send");
-    io_wait(fd, IO_WRITE);
+    aio_wait(get_thread_aio(), fd, IO_WRITE);
     co_debug("async send finish");
     return __send(fd, buff, len, flags);
 }
 
-int aclose(int fd)
+int co_close(int fd)
 {
-    io_del(fd);
+    aio_del(get_thread_aio(), fd);
 #ifdef WIN32
     closesocket(fd);
     return 0;
@@ -134,9 +127,7 @@ void hook_sys_call()
 	HOOK_FUNC(connect);
     HOOK_FUNC(recv);
     HOOK_FUNC(send);
-#ifndef WIN32
     HOOK_FUNC(close);
-#endif
 }
 
 

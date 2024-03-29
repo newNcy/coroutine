@@ -17,23 +17,20 @@ heap_t * timer_mgr_init()
     return heap_create((any_compare_t)timer_less);
 }
 
-int usleep(long long us)
+int co_sleep_ns(long long ns_delay)
 {
-    if (us < 0) {
+    if (ns < 0) {
         return 0;
     }
     co_timer_t * timer = (co_timer_t*)malloc(sizeof(co_timer_t));
     timer->co = co_running();
-    timer->ns = ns() + us*1000;
+    timer->ns = ns() + ns_delay;
     heap_push(thread_env()->timer_mgr, timer);
     co_yield();
     return 1;
 }
 
-unsigned int sleep(unsigned int ms)
-{
-    return usleep(ms * 1000);
-}
+
 
 long long process_timer()
 {
@@ -41,7 +38,7 @@ long long process_timer()
     while (!heap_empty(thread_env()->timer_mgr)) {
         co_timer_t * timer = (co_timer_t*)heap_top(thread_env()->timer_mgr);
         if (now < timer->ns) {
-            return (timer->ns - now)/1000;
+            return (timer->ns - now)/1000000;
         } else {
             co_t * co = timer->co;
             free(timer);

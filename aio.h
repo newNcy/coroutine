@@ -25,22 +25,23 @@ typedef struct
     list_t * writer;
 } wait_info_t;
 
-typedef struct io_mgr_t
+typedef struct aio_mgr_t
 {
-    void * event_ctx;
-    array_t fired_events;
-    map_t wait_map;
+    array_t * fired_events;
+    map_t * wait_map;
     list_t * dead;
-} io_mgr_t;
+    void * event_ctx;
+} aio_t;
 
-void io_init();
-void io_add(int fd);
-void io_del(int fd);
-void io_wait(int fd, int events);
+aio_t * aio_create();
+void aio_add(aio_t * aio, int fd);
+void aio_del(aio_t * aio, int fd);
+void aio_wait(aio_t * aio, int fd, int events);
 any_t encode_event(int fd, int events);
 void decode_event(any_t event, int * fd, int * events);
-void io_setnoblock(int fd);
-void io_update(long long timeout);
-void io_destroy();
+void io_setnoblock( int fd);
+void aio_update(aio_t * aio, long long timeout);
+void aio_destroy(aio_t * aio);
+void aio_debug_print_info();
 
 

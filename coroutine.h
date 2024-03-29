@@ -45,7 +45,7 @@ typedef struct
     list_t * free_list;
     array_t * co_pool;
     heap_t * timer_mgr;
-    io_mgr_t io_mgr;
+    aio_t * aio;
 } env_t;
 
 
@@ -68,6 +68,7 @@ void *co_await(awaitable_t awaitable);
 
 co_t * co_running();
 void co_finish();
+int co_count();
 void co_loop();
 
 inline env_t * thread_env();

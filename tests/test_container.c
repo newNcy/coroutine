@@ -1,6 +1,7 @@
 #include "map.h"
 #include "heap.h"
 #include "list.h"
+#include <string.h>
 
 int compare(any_t a, any_t b)
 {
@@ -16,7 +17,7 @@ void insert_and_print(map_t * map, any_t key, any_t value)
 {
     map_set(map, key, value);
 
-    for (map_iterator_t iter = map_begin(map); iter !=  map_end(map); iter = iter_next(iter)) {
+    for (map_iterator_t iter = map_begin(map); iter !=  map_end(map); iter = map_next(iter)) {
         //printf("%d ", map_iterator_get(iter));
     }
     printf("\n");
@@ -44,19 +45,17 @@ int main()
     heap_destroy(&heap);
 
     */
-    map_t map;
-    map_init(&map, compare, compare_e);
-    map_set(&map, 5, 4);
+    map_t * map = map_create(NULL, NULL);
+    map_set(map, (any_t)5, (any_t)4);
     printf("++++++++++++++++++++++++++++\n");
-    map_set(&map, -1, 4);
+    map_set(map, (any_t)-1, (any_t)4);
     printf("++++++++++++++++++++++++++++\n");
-    map_set(&map, 6, 4);
+    map_set(map, (any_t)6,(any_t) 4);
     printf("++++++++++++++++++++++++++++\n");
-    map_set(&map, 4, 4);
+    map_set(map, (any_t)4, (any_t)4);
     printf("++++++++++++++++++++++++++++\n");
 
-    map_remove_key(&map, 6);
-    tree_print(map.root);
+    map_remove_key(map, (any_t)6);
 
     /*
     for (int i = 7; i >= 1; -- i) {
@@ -66,8 +65,6 @@ int main()
     }
     */
 
-    list_t * list = list_create();
-    printf("%x %x %d", list_begin(list), list_end(list), list_empty(list));
 }
 
 

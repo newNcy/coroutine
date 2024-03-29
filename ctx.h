@@ -4,25 +4,13 @@ typedef uint64_t reg_t;
 
 typedef struct 
 {
-    reg_t rsp;
-    reg_t rbp;
-    reg_t rip;
+    reg_t stack_pointer;
+    reg_t stack_base;
+    reg_t interp_pointer;
 
-    //for int arguments
-    reg_t rdi;
-    reg_t rsi;
-    reg_t rcx;
-    reg_t rdx;
-
-    //callee save
-    reg_t rbx;
-    reg_t r12;
-    reg_t r13;
-    reg_t r14;
-    reg_t r15;
-    
-    //for return value
-    reg_t rax;
+    reg_t int_args[4];
+    reg_t callee_save[4];
+    reg_t return_value;
 
 } ctx_t;
 

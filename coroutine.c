@@ -20,7 +20,7 @@ void co_wrap(co_t * co, void * args)
     void * ret = co->entry(args);
     co_debug("return with %d", ret);
     co->status = CO_FINISH;
-    co->main.rax = (reg_t)ret;
+    co->main.return_value = (reg_t)ret;
     while (!list_empty(co->wait_list)) {
         co_t * co = (co_t*)list_pop_front(co->wait_list);
         co_resume(co);
@@ -33,13 +33,14 @@ void co_init()
 {
     env_t * env = thread_env();
 	if (!env->inited) {
+        env->inited = 1;
+
         env->free_list = list_create();
         env->co_pool = array_create();
         env->timer_mgr = timer_mgr_init();
 		env->running = nullptr;
-        env->inited = 1;
+        env->aio = aio_create();
 
-        io_init();
         hook_sys_call();
 	}
 }
@@ -67,17 +68,12 @@ co_t * co_create(void * entry, void * args)
     co->entry = (co_entry_t)entry;
     co->status = CO_SUSPEND;
 
-    co->ctx.rbp = (uint64_t)(co->stack + CO_STACK_SIZE);
+    co->ctx.stack_base = (uint64_t)(co->stack + CO_STACK_SIZE);
 
-    co->ctx.rsp = co->ctx.rbp - 16; 
-    co->ctx.rip = (uint64_t)co_wrap;
-#ifdef WIN32
-    co->ctx.rcx = (uint64_t)co;
-    co->ctx.rdx = (uint64_t)args;
-#else
-    co->ctx.rdi = (uint64_t)co;
-    co->ctx.rsi = (uint64_t)args;
-#endif
+    co->ctx.stack_pointer = co->ctx.stack_base - 16; 
+    co->ctx.interp_pointer = (uint64_t)co_wrap;
+    co->ctx.int_args[0] = (reg_t)co;
+    co->ctx.int_args[1] = (uint64_t)args;
 
     return co;
 }
@@ -113,7 +109,6 @@ void co_yield()
 
 awaitable_t co_start(void * entry, void * args)
 {
-    assert(thread_env()->inited && "co env need to be inited first");
     co_t * co = co_create(entry, args);
     co_resume(co);
     awaitable_t ret;
@@ -129,7 +124,7 @@ void *co_await(awaitable_t awaitable)
     env_t * env = thread_env();
     if (co) {
         if (co->status == CO_FINISH) {
-            return (void*)co->main.rax;
+            return (void*)co->main.return_value;
         } else {
             list_push_back(co->wait_list, co_running());
         }
@@ -148,7 +143,7 @@ void co_finish()
     array_destroy(env->co_pool);
     list_destroy(env->free_list);
     heap_destroy(env->timer_mgr);
-    io_destroy(&env->io_mgr);
+    aio_destroy(env->aio);
 }
 
 
@@ -174,7 +169,7 @@ void co_loop()
     env_t * env = thread_env();
     while (list_size(env->free_list) != array_size(env->co_pool)) {
         long long next_wake = process_timer();
-        io_update(next_wake);
+        aio_update(env->aio, next_wake);
     }
     co_finish();
 }

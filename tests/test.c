@@ -11,7 +11,7 @@ void sleep_for_sec(int sec)
 void start()
 {
     for (int i = 1; i <= 50; ++ i) {
-        co_start(sleep_for_sec, 2);
+        co_start(sleep_for_sec, (void*)2);
     }
 }
 

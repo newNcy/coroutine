@@ -8,22 +8,26 @@
 #endif
 #include <stdlib.h>
 
-extern  void event_init(io_mgr_t * io_mgr);
-extern void event_destroy(io_mgr_t * io_mgr);
-extern int event_wait(io_mgr_t * io_mgr, long long timeout);
-extern void event_add(io_mgr_t * io_mgr, int fd);
-extern void event_del(io_mgr_t * io_mgr, int fd);
-void io_init()
+extern void *event_create();
+extern void event_destroy(void * ctx);
+extern int event_wait(void * ctx, array_t * fired, long long timeout);
+extern void event_add(void * ctx, int fd);
+extern void event_del(void * ctx, int fd);
+
+aio_t * aio_create()
 {
-    env_t * env = thread_env();
-    event_init(&env->io_mgr);
-    map_init(&thread_env()->io_mgr.wait_map, less, equals);
-    env->io_mgr.dead = list_create();
+    aio_t * aio = (aio_t*)malloc(sizeof(aio_t));
+    aio->wait_map = map_create(nullptr, nullptr);
+    aio->fired_events = array_create();
+    aio->event_ctx = event_create();
+    aio->dead = list_create();
+
+    return aio;
 }
-void io_destroy()
+void aio_destroy(aio_t * aio)
 {
-    event_destroy(&thread_env()->io_mgr);
-    map_destroy(&thread_env()->io_mgr.wait_map);
+    event_destroy(aio->event_ctx);
+    map_destroy(aio->wait_map);
 }
 
 any_t encode_event(int fd, int events) 
@@ -37,22 +41,20 @@ void decode_event(any_t event, int * fd, int * events)
     *events = (long long)event & 0x7; 
 }
 
-void io_update(long long timeout)
+void aio_update(aio_t * aio, long long timeout)
 {
-    if (!map_size(&thread_env()->io_mgr.wait_map)) {
+    if (!map_size(aio->wait_map)) {
         return;
     }
 
-    io_mgr_t * io_mgr = &thread_env()->io_mgr;
-
-    int num_events = event_wait(io_mgr, timeout);
+    int num_events = event_wait(aio->event_ctx, aio->fired_events, timeout);
     for (int i = 0; i < num_events; ++ i) {
         int fd = 0;
         int events = 0;
-        any_t e = array_get(&io_mgr->fired_events, i);
+        any_t e = array_get(aio->fired_events, i);
         decode_event(e, &fd, &events);
-        map_iterator_t iter = map_find(&io_mgr->wait_map, (any_t)fd);
-        if (map_iterator_valid(&io_mgr->wait_map, iter)) {
+        map_iterator_t iter = map_get(aio->wait_map, (any_t)fd);
+        if (map_iterator_valid(aio->wait_map, iter)) {
             wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
             if ((events & IO_READ) && !list_empty(wait->reader)) {
                 co_t * co = list_pop_front(wait->reader);
@@ -65,8 +67,8 @@ void io_update(long long timeout)
         }
     }
 
-    while (!list_empty(io_mgr->dead)) {
-        wait_info_t * wait = (wait_info_t*)list_pop_front(io_mgr->dead);
+    while (!list_empty(aio->dead)) {
+        wait_info_t * wait = (wait_info_t*)list_pop_front(aio->dead);
         while (!list_empty(wait->reader)) {
             co_t * co = list_pop_front(wait->reader);
             co_resume(co);
@@ -81,10 +83,10 @@ void io_update(long long timeout)
     }
 }
 
-void io_wait(int fd, int events)
+void aio_wait(aio_t * aio, int fd, int events)
 {
-    map_iterator_t iter = map_find(&thread_env()->io_mgr.wait_map, (any_t)fd);
-    if (!map_iterator_valid(&thread_env()->io_mgr.wait_map, iter)) {
+    map_iterator_t iter = map_get(aio->wait_map, (any_t)fd);
+    if (!map_iterator_valid(aio->wait_map, iter)) {
         return;
     }
     wait_info_t * wait = (wait_info_t*)map_iterator_get(iter);
@@ -108,39 +110,45 @@ int io_setnoblocking(int fd)
 	int new_option = old_option | O_NONBLOCK;
 	fcntl(fd, F_SETFL, new_option);
 	return old_option;
-
 #endif
 }
 
 
-void io_add(int fd)
+void aio_add(aio_t * aio, int fd)
 {
-    io_mgr_t * io_mgr = &thread_env()->io_mgr;
-    map_iterator_t iter = map_find(&io_mgr->wait_map, (any_t)fd);
+    map_iterator_t iter = map_get(aio->wait_map, (any_t)fd);
     wait_info_t * wait = nullptr;
-    if (map_iterator_valid(&io_mgr->wait_map, iter)) {
-        wait = map_iterator_get(iter);
-    } else {
+    if (!map_iterator_valid(aio->wait_map, iter)) {
         wait = (wait_info_t*)malloc(sizeof(wait_info_t));
         wait->reader = list_create();
         wait->writer = list_create();
-        map_set(&io_mgr->wait_map, (any_t)fd, wait);
+        map_set(aio->wait_map, (any_t)fd, wait);
     }
-    event_add(&thread_env()->io_mgr, fd);
+    event_add(aio->event_ctx, fd);
     co_info("%d add to io set", fd);
 }
 
-void io_del(int fd)
+void aio_del(aio_t * aio, int fd)
 {
-    io_mgr_t * io_mgr = &thread_env()->io_mgr;
     co_info("%d remove from io set", fd);
-    event_del(io_mgr, fd);
-    map_iterator_t iter = map_find(&io_mgr->wait_map, (any_t)fd);
-    if (map_iterator_valid(&io_mgr->wait_map, iter)) {
+    event_del(aio->event_ctx, fd);
+    map_iterator_t iter = map_get(aio->wait_map, (any_t)fd);
+    if (map_iterator_valid(aio->wait_map, iter)) {
         wait_info_t * wait = map_iterator_get(iter);
-        list_push_back(io_mgr->dead, wait);
-        map_remove_key(&thread_env()->io_mgr.wait_map, (any_t)fd);
+        list_push_back(aio->dead, wait);
+        map_remove_key(aio->wait_map, (any_t)fd);
     }
 }
 
+void aio_debug_print_info()
+{
+    aio_t * aio = thread_env()->aio;
+    map_t  * wait_map = aio->wait_map;
 
+    for (map_iterator_t it = map_begin(wait_map); it != map_end(wait_map); it = map_next(it)) {
+        wait_info_t * wait = (wait_info_t*)map_iterator_get(it);
+        list_t * rl = wait->reader;
+        list_t * wl = wait->writer;
+        printf("r/w of %d count:%d/%d\n", (int)it->key, list_size(rl), list_size(wl));
+    }
+}

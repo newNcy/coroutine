@@ -1,5 +1,6 @@
 #include "coroutine.h"
 #include <errno.h>
+#include <assert.h>
 #ifdef WIN32
 typedef unsigned socklen_t;
 #else
@@ -8,14 +9,15 @@ typedef unsigned socklen_t;
 
 
 int connection_count = 0;
+map_t * fd_used = NULL;
 
 void serve(int conn)
 {
     connection_count ++;
     while(true) {
         char buff[1024] = {0};
-        int rc = arecv(conn, buff, 1024, 0);
-        printf("%d->%d:%s\n", conn, rc, buff);
+        int rc = co_recv(conn, buff, 1024, 0);
+        //printf("%d->%d:%s\n", conn, rc, buff);
         if (rc <= 0) {
             printf("connection[%d] closed\n", conn);
 #ifdef WIN32
@@ -24,25 +26,28 @@ void serve(int conn)
 #endif
             break;
         }
-        int sc = asend(conn, buff, rc, 0);
+        int sc = co_send(conn, buff, rc, 0);
         printf("send %d bytes\n", sc);
     }
     connection_count --;
-    aclose(conn);
+    co_close(conn);
+    map_remove_key(fd_used, (any_t)conn);
 }
 
 void show_connection_count()
 {
     for (;;) {
-        printf("connection_count:%d\n", connection_count);
+        co_sleep_ms(1000);
+        printf("connection_count:%d coroutine count:%d\n", connection_count, co_count());
+        aio_debug_print_info();
         fflush(stdout);
-        sleep(1000);
     }
 }
 
 void accpetor(int port)
 {
-    #ifdef WIN32
+    fd_used = map_create(NULL, NULL);
+#ifdef WIN32
     WORD word = MAKEWORD(2, 2);
     WSADATA wdata;
     int serr = WSAStartup(word, &wdata);
@@ -51,8 +56,7 @@ void accpetor(int port)
     }
 #endif
 
-    co_start(show_connection_count,0);
-    int sock = asocket(AF_INET, SOCK_STREAM, 0);
+    int sock = co_socket(AF_INET, SOCK_STREAM, 0);
 
     struct sockaddr_in bind_info; 
     bind_info.sin_family = AF_INET;
@@ -65,29 +69,31 @@ void accpetor(int port)
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &dummy, sizeof(dummy));
     if (err) {
         printf("bind failed\n");
-        aclose(sock);
+        co_close(sock);
         return;
     }
 
     err = listen(sock, 1024);
     
-    printf("%d listen on %d\n", sock, 80);
+    printf("%d listen on %d\n", sock, port);
     while(true) {
         struct sockaddr_in client;
         socklen_t len = sizeof(client);
-        int conn = aaccept(sock, (struct sockaddr *)&client, &len);
+        int conn = co_accept(sock, (struct sockaddr *)&client, &len);
         if (conn< 0) {
             perror("accept");
             continue;
         }
         unsigned char * ip = (char*)&client.sin_addr.s_addr;
         printf("[%d][%d.%d.%d.%d:%d]\n", conn, ip[0], ip[1], ip[2], ip[3], htons(client.sin_port));
-        co_start(serve, conn);
+        assert(map_get(fd_used, (any_t)conn) == nullptr);
+        co_start(serve, (void*)conn);
     }
-    aclose(sock);
+    co_close(sock);
 }
 
 int main()
 {
-    co_main(accpetor, 1224);
+    co_start(show_connection_count, NULL);
+    co_main(accpetor, (void*)12240);
 }

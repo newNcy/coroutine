@@ -12,7 +12,7 @@ void f(int i)
 
 int main(int argc, char * argv[]) 
 {
-    co_t * co = co_create(f, 3);
+    co_t * co = co_create(f, (void*)3);
     s = ns();
     co_resume(co);
     printf("resume with %lld ns\n", ns() -s);
