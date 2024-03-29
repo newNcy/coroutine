@@ -25,12 +25,14 @@ typedef struct
     list_t * writer;
 } wait_info_t;
 
+typedef struct event_ctx_t event_ctx_t;
+
 typedef struct aio_mgr_t
 {
     array_t * fired_events;
     map_t * wait_map;
     list_t * dead;
-    void * event_ctx;
+    event_ctx_t * event_ctx;
 } aio_t;
 
 aio_t * aio_create();
