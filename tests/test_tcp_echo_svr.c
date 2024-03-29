@@ -8,7 +8,7 @@ typedef unsigned socklen_t;
 #endif
 
 
-int connection_count = 0;
+volatile int connection_count = 0;
 map_t * fd_used = NULL;
 
 void serve(int conn)
@@ -26,20 +26,20 @@ void serve(int conn)
 #endif
             break;
         }
-        int sc = co_send(conn, buff, rc, 0);
-        printf("send %d bytes\n", sc);
+        //int sc = co_send(conn, buff, rc, 0);
+        //printf("send %d bytes\n", sc);
     }
     connection_count --;
     co_close(conn);
-    map_remove_key(fd_used, (any_t)conn);
+    //map_remove_key(fd_used, (any_t)conn);
 }
 
 void show_connection_count()
 {
     for (;;) {
         co_sleep_ms(1000);
-        printf("connection_count:%d coroutine count:%d\n", connection_count, co_count());
-        aio_debug_print_info();
+        printf("connection_count:%d coroutine count:%d fd_used size %d\n", connection_count, co_count(), map_size(fd_used));
+        //aio_debug_print_info();
         fflush(stdout);
     }
 }
@@ -87,6 +87,7 @@ void accpetor(int port)
         unsigned char * ip = (char*)&client.sin_addr.s_addr;
         printf("[%d][%d.%d.%d.%d:%d]\n", conn, ip[0], ip[1], ip[2], ip[3], htons(client.sin_port));
         assert(map_get(fd_used, (any_t)conn) == nullptr);
+        //map_set(fd_used, (any_t)conn, (any_t)1);
         co_start(serve, (void*)conn);
     }
     co_close(sock);

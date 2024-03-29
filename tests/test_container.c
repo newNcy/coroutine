@@ -46,16 +46,15 @@ int main()
 
     */
     map_t * map = map_create(NULL, NULL);
-    map_set(map, (any_t)5, (any_t)4);
-    printf("++++++++++++++++++++++++++++\n");
-    map_set(map, (any_t)-1, (any_t)4);
-    printf("++++++++++++++++++++++++++++\n");
-    map_set(map, (any_t)6,(any_t) 4);
-    printf("++++++++++++++++++++++++++++\n");
-    map_set(map, (any_t)4, (any_t)4);
-    printf("++++++++++++++++++++++++++++\n");
 
-    map_remove_key(map, (any_t)6);
+    for (int i = 3; i < 14; i ++) {
+        map_set(map, (any_t)i, (any_t)i);
+    }
+    map_remove_key(map, 13);
+    map_remove_key(map, 6);
+    map_remove_key(map, 7);
+    map_remove_key(map, 8);
+    map_remove_key(map, 9);
 
     /*
     for (int i = 7; i >= 1; -- i) {

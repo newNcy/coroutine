@@ -1,5 +1,6 @@
 #include "aio.h"
 #include "coroutine.h"
+#include <assert.h>
 #include "macros.h"
 #ifdef WIN32
 #include <winsock2.h>
@@ -73,11 +74,12 @@ void aio_update(aio_t * aio, long long timeout)
             co_t * co = list_pop_front(wait->reader);
             co_resume(co);
         }
+        list_destroy(wait->reader);
+
         while (!list_empty(wait->writer)) {
             co_t * co = list_pop_front(wait->writer);
             co_resume(co);
         }
-        list_destroy(wait->reader);
         list_destroy(wait->writer);
         free(wait);
     }
@@ -133,6 +135,7 @@ void aio_del(aio_t * aio, int fd)
     co_info("%d remove from io set", fd);
     event_del(aio->event_ctx, fd);
     map_iterator_t iter = map_get(aio->wait_map, (any_t)fd);
+    assert(iter);
     if (map_iterator_valid(aio->wait_map, iter)) {
         wait_info_t * wait = map_iterator_get(iter);
         list_push_back(aio->dead, wait);

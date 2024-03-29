@@ -1,5 +1,7 @@
 #include "map.h"
 #include <stdlib.h>
+#include <assert.h>
+#include "container.h"
 #include "list.h"
 
 
@@ -38,7 +40,7 @@ void tree_print(rb_node_t * node)
     if (!node) {
         return;
     }
-    while (node->parent) node = node->parent;
+    //while (node->parent) node = node->parent;
 
     list_t * cur = list_create();
     list_t * nxt = list_create();
@@ -77,6 +79,7 @@ void tree_print(rb_node_t * node)
         height --;
         printf("\n");
     }
+    printf("\n");
 }
 
 
@@ -221,12 +224,16 @@ rb_node_t * rb_fixup(rb_node_t * n)
     return n;
 }
 
-rb_node_t * rb_put(rb_node_t * n, any_t key, any_t value, any_compare_t less, rb_node_t ** ret)
+rb_node_t * rb_put(rb_node_t * n, any_t key, any_t value, any_compare_t less, rb_node_t ** ret, int * has_new_node)
 {
     if (!n) return *ret = rb_node_create(key, value);
-    if (less(key, n->key)) n->left = rb_put(n->left, key, value, less, ret);
-    else if (less(n->key, key)) n->right = rb_put(n->right, key, value, less, ret);
-    else n->value = value;
+    if (less(key, n->key)) n->left = rb_put(n->left, key, value, less, ret, has_new_node);
+    else if (less(n->key, key)) n->right = rb_put(n->right, key, value, less, ret, has_new_node);
+    else {
+        *ret = n;
+        n->value = value;
+        has_new_node = 0;
+    }
 
     return rb_fixup(n); 
 }
@@ -239,9 +246,12 @@ map_iterator_t map_set(map_t * map, any_t key, any_t value)
     }
 
     map_iterator_t ret;
-    map->root = rb_put(map->root, key, value, map->less, &ret);
+    int has_new_node = 1;
+    map->root = rb_put(map->root, key, value, map->less, &ret, &has_new_node);
     rb_node_set_red(map->root, 0);
-    map->size++;
+    if (has_new_node) {
+        map->size++;
+    }
     tree_print(map->root);
     return ret;
 }
@@ -353,7 +363,6 @@ rb_node_t * rb_move_red_left(rb_node_t * node)
 rb_node_t * rb_move_red_right(rb_node_t * node)
 {
     rb_node_flip_color(node);
-    // 同样这里两边：
     if (node->left && rb_node_is_red(node->left->left)) {
         node = rb_rotate_right(node);
         rb_node_flip_color(node);
@@ -370,7 +379,7 @@ rb_node_t * rb_remove_min(rb_node_t * node, rb_node_t ** out)
     }
 
     if (!rb_node_is_red(node->left) && !rb_node_is_red(node->left->left)) {
-        rb_move_red_left(node);
+        node = rb_move_red_left(node);
     }
 
     node->left = rb_remove_min(node->left, out);
@@ -378,7 +387,7 @@ rb_node_t * rb_remove_min(rb_node_t * node, rb_node_t ** out)
     return node;
 }
 
-rb_node_t * rb_remove(rb_node_t * node, any_t key, any_compare_t less, rb_node_t ** out)
+rb_node_t * rb_remove(rb_node_t * node, any_t key, any_compare_t less, any_compare_t equals, rb_node_t ** out)
 {
     if (!node) {
         return nullptr;
@@ -389,14 +398,13 @@ rb_node_t * rb_remove(rb_node_t * node, any_t key, any_compare_t less, rb_node_t
             if (!rb_node_is_red(node->left) && node->left && !rb_node_is_red(node->left->left)) {     
                 node = rb_move_red_left(node);
             }
-            node->left = rb_remove(node->left, key, less, out);
+            node->left = rb_remove(node->left, key, less, equals, out);
         }
     } else {
         if (rb_node_is_red(node->left)) {
             node = rb_rotate_right(node);
         }
-        int eq = !less(node->key, key);
-        if (eq && node->right == nullptr) {
+        if ( equals(node->key, key) && node->right == nullptr) {
             *out = node;
             return nullptr;
         }
@@ -405,14 +413,13 @@ rb_node_t * rb_remove(rb_node_t * node, any_t key, any_compare_t less, rb_node_t
             node = rb_move_red_right(node);
         }
 
-        eq = !less(node->key, key);
-        if (eq) {
+        if (equals(node->key, key)) {
             rb_node_t * min_node = rb_minimum(node->right);
             node->key = min_node->key;
             node->value = min_node->value;
             node->right = rb_remove_min(node->right, out);
         }else {
-            node->right = rb_remove(node->right, key, less, out);
+            node->right = rb_remove(node->right, key, less, equals, out);
         }
     }
 
@@ -437,10 +444,11 @@ void map_remove_min(map_t * map)
 void map_remove_key(map_t * map, any_t key)
 {
     rb_node_t* to_remove = nullptr;
-    map->root = rb_remove(map->root, key, map->less, &to_remove);
+    map->root = rb_remove(map->root, key, map->less, map->equals,  &to_remove);
     if (map->root) {
         rb_node_set_red(map->root, 0);
     }
+    assert(to_remove);
     if (to_remove) {
         free(to_remove);
         map->size--;
