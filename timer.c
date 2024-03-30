@@ -26,7 +26,7 @@ int co_sleep_ns(long long ns_delay)
     timer->co = co_running();
     timer->ns = ns() + ns_delay;
     heap_push(thread_env()->timer_mgr, timer);
-    co_yield();
+    co_yield(NULL);
     return 1;
 }
 

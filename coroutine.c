@@ -20,13 +20,12 @@ void co_wrap(co_t * co, void * args)
     void * ret = co->entry(args);
     co_debug("return with %d", ret);
     co->status = CO_FINISH;
-    co->main.return_value = (reg_t)ret;
     while (!list_empty(co->wait_list)) {
         co_t * co = (co_t*)list_pop_front(co->wait_list);
         co_resume(co);
     }
     list_push_back(thread_env()->free_list, co_running());
-    co_yield();
+    co_yield(ret);
 }
 
 void co_init()
@@ -94,17 +93,18 @@ void * co_resume(co_t * co)
     co_debug("resume [%d]", co->id);
     co->last = co_running();
     env->running = co;
-    return swap_ctx(&co->main, &co->ctx);
+    return swap_ctx(&co->main, &co->ctx, 1);
 }
 
-void co_yield()
+void co_yield(void * ret)
 {
     env_t * env = thread_env();
     co_t * co = co_running();
     assert(co && "can not yield in main routine");
     co_debug("%s [%d]", co->status == CO_FINISH?"finish,back to":"yield", co->last? co->last->id: -1);
     env->running = co->last;
-    swap_ctx(&co->ctx, &co->main);
+    co->ctx.return_value = ret;
+    swap_ctx(&co->ctx, &co->main, 0);
 }
 
 awaitable_t co_start(void * entry, void * args)

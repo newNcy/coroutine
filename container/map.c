@@ -223,14 +223,18 @@ rb_node_t * rb_fixup(rb_node_t * n)
 rb_node_t * rb_put(rb_node_t * n, any_t key, any_t value, any_compare_t less, rb_node_t ** ret, int * has_new_node)
 {
     if (!n) return *ret = rb_node_create(key, value);
-    if (less(key, n->key)) n->left = rb_put(n->left, key, value, less, ret, has_new_node);
-    else if (less(n->key, key)) n->right = rb_put(n->right, key, value, less, ret, has_new_node);
+    if (less(key, n->key)) {
+        n->left = rb_put(n->left, key, value, less, ret, has_new_node);
+        n->left->parent = n;
+    } else if (less(n->key, key)) {
+        n->right = rb_put(n->right, key, value, less, ret, has_new_node);
+        n->right->parent = n;
+    }
     else {
         *ret = n;
         n->value = value;
         has_new_node = 0;
     }
-
     return rb_fixup(n); 
 }
 
@@ -322,14 +326,7 @@ map_iterator_t map_next(map_iterator_t iter)
         return nullptr;
     }
     if (iter->right) {
-        map_iterator_t next = rb_minimum(iter->right);
-        if (next) {
-            return next;
-        }
-    }
-
-    if (iter->parent && iter->parent->left == iter) {
-        return iter->parent;
+        return rb_minimum(iter->right);
     }
 
     while (iter->parent && iter == iter->parent->right) {

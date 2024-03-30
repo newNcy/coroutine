@@ -99,7 +99,7 @@ void aio_wait(aio_t * aio, int fd, int events)
         list_push_back(wait->writer, co_running());
     }
     
-    co_yield();
+    co_yield(NULL);
 }
 
 int io_setnoblocking(int fd)

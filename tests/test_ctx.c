@@ -1,21 +1,24 @@
 #include "coroutine.h"
 #include <stdio.h>
 
-uint64_t s = 0;
-void f(int i)
+int f(int v)
 {
-    int local = i + 3;
-    printf("i: %d local:%d\n", i, local);
-    co_yield();
-    printf("i: %d local:%d\n", i, local);
+    for (int i = 0; i < 10; ++ i) {
+        v ++;
+        co_yield(v);
+    }
+
+    return ++v;
 }
 
 int main(int argc, char * argv[]) 
 {
-    co_t * co = co_create(f, (void*)3);
-    s = ns();
-    co_resume(co);
-    printf("resume with %lld ns\n", ns() -s);
-    co_resume(co);
+    co_t * co = co_create(f, 3);
+    for (int i = 0; i < 10; ++ i) {
+        int t = co_resume(co);
+        printf("t=%d\n", t);
+    }
+    int t = co_resume(co);
+    printf("ret=%d\n", t);
 	return 0;
 }

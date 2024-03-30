@@ -61,7 +61,7 @@ void co_init();
 
 co_t * co_create(void *entry, void * args);
 inline void * co_resume(co_t * id);
-inline void co_yield();
+inline void co_yield(void * ret);
 
 awaitable_t co_start(void * entrry, void * args);
 void *co_await(awaitable_t awaitable);

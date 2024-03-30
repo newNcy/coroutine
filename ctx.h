@@ -1,17 +1,17 @@
 #pragma once
 
-typedef uint64_t reg_t;
+typedef unsigned long reg_t;
 
 typedef struct 
 {
-    reg_t stack_pointer;
-    reg_t stack_base;
-    reg_t interp_pointer;
+    reg_t interp_pointer;   //#0
+    reg_t stack_base;       //#8
+    reg_t stack_pointer;    //#16
 
-    reg_t int_args[4];
-    reg_t callee_save[4];
-    reg_t return_value;
+    reg_t return_value;     //#24
+    reg_t int_args[2];      //#32 40
 
+    reg_t callee_save[CALLEE_SAVE_COUNT]; //#48
 } ctx_t;
 
 
@@ -19,7 +19,7 @@ typedef struct
 extern "C" {
 #endif
 
-void *swap_ctx(ctx_t * cur, ctx_t * next);
+void *swap_ctx(ctx_t * cur, ctx_t * nxt, int in_or_out);
 
 #ifdef __cplusplus
 }

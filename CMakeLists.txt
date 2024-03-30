@@ -15,8 +15,8 @@ endif()
 
 
 add_library(ctx ctx.h)
-message("${CMAKE_SYSTEM_PROCESSOR}" )
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+    add_definitions(-DCALLEE_SAVE_COUNT=10)
     target_sources(ctx PRIVATE ctx.arm64.asm)
 elseif (UNIX OR MINGW)
     target_sources(ctx PRIVATE ctx.S)
